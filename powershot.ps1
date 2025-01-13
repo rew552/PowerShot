@@ -127,7 +127,7 @@ Function showForm() {
             $inputForm.Size = New-Object System.Drawing.Size(340, 205)
             $inputForm.StartPosition = "CenterScreen"
             $inputForm.BackColor = "white"
-            $inputForm.FormBorderStyle = "FixedDialog"
+            $inputForm.FormBorderStyle = "Fixed3D"
             $inputForm.MaximizeBox = $False
             $inputForm.MinimizeBox = $False
             $inputForm.ControlBox = $False
@@ -139,7 +139,7 @@ Function showForm() {
             $label = New-Object System.Windows.Forms.Label
             $label.Location = New-Object System.Drawing.Point(20, 10)
             $label.Size = New-Object System.Drawing.Size(270, 20)
-            $label.Text = "ファイル名を入力(拡張子不要)"
+            $label.Text = "ファイル名(拡張子不要):"
             $inputForm.Controls.Add($label)
 
             # 入力ボックスの設定
@@ -154,8 +154,8 @@ Function showForm() {
             # ラベルを表示
             $seqlabel = New-Object System.Windows.Forms.Label
             $seqlabel.Location = New-Object System.Drawing.Point(20, 85)
-            $seqlabel.Size = New-Object System.Drawing.Size(270, 20)
-            $seqlabel.Text = "連番"
+            $seqlabel.Size = New-Object System.Drawing.Size(80, 20)
+            $seqlabel.Text = "連番:"
             $inputForm.Controls.Add($seqlabel)
 
             # 入力ボックスの設定
@@ -170,7 +170,7 @@ Function showForm() {
             $OKButton = New-Object System.Windows.Forms.Button
             $OKButton.Location = New-Object System.Drawing.Point(135, 113)
             $OKButton.Size = New-Object System.Drawing.Size(75, 30)
-            $OKButton.Text = "Save"
+            $OKButton.Text = "保存"
             $OKButton.FlatStyle = "System"
             $inputForm.AcceptButton = $OKButton
             $inputForm.Controls.Add($OKButton)
@@ -230,13 +230,29 @@ Function showForm() {
             $CancelButton = New-Object System.Windows.Forms.Button
             $CancelButton.Location = New-Object System.Drawing.Point(225, 113)
             $CancelButton.Size = New-Object System.Drawing.Size(75, 30)
-            $CancelButton.Text = "Cancel"
+            $CancelButton.Text = "キャンセル"
             $CancelButton.FlatStyle = "System"
             $inputForm.CancelButton = $CancelButton
             $inputForm.Controls.Add($CancelButton)
             $CancelButton.Add_Click{
                 Set-Clipboard
                 $picForm.Dispose()
+            }
+
+            # 連番リセットボタンの設定
+            $ResetButton = New-Object System.Windows.Forms.Button
+            $ResetButton.Location = New-Object System.Drawing.Point( 200, 76)
+            $ResetButton.Size = New-Object System.Drawing.Size(100, 30)
+            $ResetButton.Text = "連番初期化"
+            $ResetButton.FlatStyle = "System"
+            $inputForm.Controls.Add($ResetButton)
+
+
+            # リセットボタンのクリックイベント
+            $ResetButton.Add_Click{
+                $global:seqNum = 1
+                $global:seqNumzero = "{0:000}" -f $global:seqNum
+                $seqTextBox.Text = $global:seqNumzero
             }
 
             $inputForm.Add_Shown({ $this.Activate() })
