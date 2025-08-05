@@ -1,25 +1,3 @@
-<#
-.SYNOPSIS
-    クリップボードを監視し、高機能なUIでスクリーンショットを効率的に整理・保存する常駐型ツール。
-
-.DESCRIPTION
-    このスクリプトは、クリップボードにコピーされた画像を検知し、保存用のウィンドウを表示します。
-    ユーザーはプレビューを確認しながら、フォルダ名やファイル名を柔軟に設定して画像を保存できます。
-    ファイル履歴の検索や連番の自動インクリメントなど、スクリーンショットの管理を効率化するための
-    多数の機能を備えています。コアロジックはC#で記述されており、PowerShell上で安定して動作します。
-
-.NOTES
-    Version: 1.0
-
-    Key Features:
-    - クリップボード画像の自動検知
-    - 画像プレビューとリサイズ可能なUI
-    - サブフォルダへの保存機能
-    - ファイル名・フォルダ名の履歴検索
-    - 連番の自動インクリメントとリセット
-    - 保存前ファイル名の重複を警告表示
-#>
-
 # --- C# Core Logic with Windows Forms UI ---
 $csharpSource = @"
 using System;
@@ -132,9 +110,13 @@ namespace PowerShot.WinForms
             mainTable.Controls.Add(_previewBox, 0, 0);
 
             var rightPanel = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3 };
-            rightPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            rightPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            rightPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F));
+            // --- LAYOUT FIX ---
+            // The settings group has many controls with fixed/auto heights. Give it the exact space it needs with `AutoSize`.
+            // The search group contains the listbox which can shrink/grow. Give it the remaining flexible space with `Percent`.
+            // This prevents UI elements from overlapping when the window is resized vertically.
+            rightPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F)); // Search group (flexible)
+            rightPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // Settings group (fixed size)
+            rightPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F)); // Button panel (absolute size)
             mainTable.Controls.Add(rightPanel, 1, 0);
 
             // Controls for Search Group
@@ -159,10 +141,11 @@ namespace PowerShot.WinForms
             rightPanel.Controls.Add(searchGroup, 0, 0);
 
             // Controls for Settings Group
-            var settingsGroup = new GroupBox { Text = "ファイル設定", Dock = DockStyle.Fill, Padding = new Padding(10) };
-            var settingsTable = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 11 };
+            var settingsGroup = new GroupBox { Text = "ファイル設定", Dock = DockStyle.Fill, Padding = new Padding(10), AutoSize = true };
+            var settingsTable = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 11, AutoSize = true };
             for (int i = 0; i < 11; i++) { settingsTable.RowStyles.Add(new RowStyle(SizeType.AutoSize)); }
-            settingsTable.RowStyles[8] = new RowStyle(SizeType.Percent, 100F);
+            // This spacer row is no longer needed to push content up, but we keep it for structure.
+            settingsTable.RowStyles[8] = new RowStyle(SizeType.Absolute, 10F);
             settingsTable.RowStyles[10] = new RowStyle(SizeType.Absolute, 45F);
             settingsTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             settingsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
@@ -538,7 +521,7 @@ namespace PowerShot.WinForms
             {
                 Console.CancelKeyPress += (sender, e) => { e.Cancel = true; controller.Shutdown(); };
 
-                Console.WriteLine("--- PowerShot v1.0 ---");
+                Console.WriteLine("--- PowerShot v1.1 ---");
                 Console.WriteLine("クリップボードの監視を開始しました。");
                 Console.WriteLine(string.Format("保存先フォルダ: {0}", controller.GetSaveDirectory()));
                 Console.WriteLine("終了するにはこのウィンドウで Ctrl+C を押してください。");
