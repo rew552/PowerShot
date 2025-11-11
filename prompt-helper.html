@@ -24,7 +24,7 @@
 			--background-color: #F8F9FA;
 			/* オフホワイトの背景 */
 			--header-color: #0F1C50;
-			/* 濃いブルー (ヘッダー) */
+			/* 濃いブルー (ヘッダー - NTTデータロゴ参考) */
 			--light-bg-color: #ffffff;
 			--subtle-text-color: #7f8c8d;
 			--placeholder-color: #95a5a6;
@@ -35,8 +35,7 @@
 
 		/* --- 全体レイアウト --- */
 		body {
-			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-				sans-serif;
+			font-family: "メイリオ", "Meiryo UI", "游ゴシック", "Yu Gothic", "ヒラギノ角ゴ ProN", "Hiragino Kaku Gothic ProN", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 			margin: 0;
 			padding: 20px;
 			background-color: var(--background-color);
@@ -54,6 +53,12 @@
 		h1 {
 			color: var(--header-color);
 			margin: 0;
+			font-size: 2.2em;
+			font-weight: bold;
+			letter-spacing: 0.05em;
+			padding-bottom: 10px;
+			border-bottom: 3px solid var(--primary-color);
+			display: inline-block;
 		}
 
 		main {
@@ -80,7 +85,6 @@
 			padding: 20px;
 			border-radius: 8px;
 			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-			/* 影を柔らかく */
 		}
 
 		.rtcc-inputs {
@@ -154,26 +158,34 @@
 		}
 
 		/* --- テクニックセクション --- */
-		/* ★★ 修正：h3のインラインスタイルをCSSに移動 ★★ */
-		.technique-section h3:not(:first-of-type) {
-			margin-top: 30px;
-			/* スペースを確保 */
+		.technique-section h3[data-margin-top="true"] {
+			margin-top: 30px !important;
+			/* 確実に適用 */
 		}
 
+		/* ★★ 修正：ボタン間の余白を詰める ★★ */
 		.technique-group {
 			display: flex;
 			flex-direction: column;
-			gap: 10px;
+			gap: 8px;
+			/* 10px から 8px に変更 */
 		}
 
+		/* ★★ 修正：中央揃え ★★ */
 		.technique-item {
 			display: flex;
-			align-items: flex-start;
+			align-items: center;
+			/* 垂直中央揃え */
 			gap: 10px;
 		}
 
+		/* ★★ 修正：ボタンの幅を固定 ★★ */
 		.technique-item button {
 			flex-shrink: 0;
+			width: 200px;
+			/* 固定幅を指定 */
+			text-align: center;
+			/* ボタン内テキストを中央揃え */
 		}
 
 		button,
@@ -221,7 +233,6 @@
 			font-size: 0.9em;
 			color: #555;
 			line-height: 1.4;
-			margin-top: 2px;
 		}
 
 		/* --- フォーマット選択 --- */
@@ -434,7 +445,7 @@
 			justify-content: flex-end;
 		}
 
-		/* ★★ 修正：Few-shotモーダル関連のスタイルをクラス化 ★★ */
+		/* Few-shotモーダル関連のスタイル */
 		#fewshot-examples-container {
 			max-height: 40vh;
 			overflow-y: auto;
@@ -499,8 +510,6 @@
 			margin-top: 20px;
 		}
 
-		/* ★★ 修正ここまで ★★ */
-
 		/* レスポンシブ対応 */
 		@media (max-width: 900px) {
 			main {
@@ -562,7 +571,7 @@
 			</div>
 
 			<div class="technique-section">
-				<h2>2. プロンプト補助テクニック</h2>
+				<h2 style="margin-bottom: 30px;">2. プロンプト補助テクニック</h2>
 
 				<h3>🧠 思考・推論を促す</h3>
 				<div class="technique-group">
@@ -596,7 +605,7 @@
 					</div>
 				</div>
 
-				<h3>🎯 出力品質・形式を制御する</h3>
+				<h3 data-margin-top="true">🎯 出力品質・形式を制御する</h3>
 				<div class="technique-group">
 					<p style="font-weight: bold; margin-bottom: 0;">出力フォーマット選択:</p>
 					<div id="format-toggles">
@@ -657,7 +666,7 @@
 					</div>
 				</div>
 
-				<h3>🛡️ 回答の弱点を補強する</h3>
+				<h3 data-margin-top="true">🛡️ 回答の弱点を補強する</h3>
 				<div class="technique-group">
 					<div class="technique-item">
 						<button class="technique-btn" data-target-area="constraints" data-technique-id="self-critique"
@@ -678,7 +687,7 @@
 		</div>
 
 		<div class="output-wrapper">
-			<h2>3. 最終プロンプト（コピー用）</h2>
+			<h2>3. プロンプト（コピー用）</h2>
 			<div id="active-techniques-display" class="active-techniques-container"></div>
 			<textarea id="final-prompt-area" readonly placeholder="ここに入力内容が自動で結合されます..."></textarea>
 
@@ -1083,7 +1092,6 @@
 			});
 
 			// Few-shot (例の描画)
-			// ★★ 修正：インラインスタイルを削除し、CSSクラスを使用 ★★
 			function renderFewShotExamples() {
 				const container = document.getElementById('fewshot-examples-container');
 				container.innerHTML = ""; // いったんクリア
@@ -1143,7 +1151,6 @@
 			});
 
 			// Few-shot (例の削除)
-			// ★★ 修正：クリックイベントのターゲットを .fewshot-delete-btn に修正 ★★
 			document.getElementById('fewshot-examples-container').addEventListener('click', (e) => {
 				const deleteButton = e.target.closest('.fewshot-delete-btn');
 				if (deleteButton && deleteButton.dataset.fewshotIndex) {
