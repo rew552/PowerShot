@@ -1,0 +1,1106 @@
+# インフラ性能分析ツール 基本設計書（バックエンド）
+
+### 1. 概要
+
+#### 1.1. 目的
+
+本ツールは、企業の IT インフラ（ネットワーク機器、ストレージ、仮想化基盤）からパフォーマンスデータを収集・蓄積・分析するための中・小規模向け分析ツールである。性能問題の調査、ボトルネックの特定、およびキャパシティプランニングを支援することを目的とする。
+
+#### 1.2. 分析スコープ
+
+分析対象は、OS レイヤー（ゲスト OS 内部）より下のインフラ層に限定する。OS 内部のプロセス監視やアプリケーションログ分析は、他の専門ツールの領域とし、本ツールのスコープ外とする。
+
+- **設計理由:** ツールの専門性を高め、インフラ担当者が真に必要とするメトリクス（ハードウェア、ハイパーバイザー、仮想 I/O）の分析に特化するため。
+
+---
+
+### 2. アーキテクチャ
+
+#### 2.1. 実行環境
+
+**Windows OS に限定**する。
+
+- **設計理由:** 多くの企業環境でのクライアント OS の標準であり、タスクスケジューラ（`schtasks.exe`）など OS 固有の機能と連携するため、実行環境を限定し安定性を高める。
+
+#### 2.2. 開発言語・バージョン
+
+**Python 3.13.x** を採用する。
+
+- **設計理由:** 本書作成時点（2025 年 11 月）において、最新の安定版であり、`Streamlit`, `DuckDB`, `Pandas` を含む主要な依存ライブラリとの互換性が広く担保されているため。
+
+#### 2.3. 配布形態
+
+**ポータブルなフォルダ形式**を採用する。
+
+- **概要:** Python Embedded 環境、すべての依存ライブラリ、および起動用バッチファイルを単一のフォルダに同梱して配布する。
+- **設計理由:** インストーラーを不要とし、フォルダをコピーするだけで実行可能な手軽さを実現するため。単一ファイル化（PyInstaller）は、設定ファイルやデータディレクトリの管理が複雑化するため採用しない。
+
+#### 2.4. 分析 UI（インターフェース）
+
+**Streamlit** を採用する。
+
+- **起動方法:** `start_analysis.bat` 等のバッチファイルを実行すると、ローカルで Streamlit サーバーが起動し、自動的にユーザーのデフォルトブラウザで分析画面（`http://localhost:8501`）が開く形式とする。
+- **設計理由:** Python のみで高速にデータ分析 UI を構築でき、DuckDB や Pandas との親和性が非常に高いため。
+
+#### 2.5. 分析エンジン
+
+**DuckDB** をライブラリとして組み込む。
+
+- **設計理由:** 大量の時系列データ（例: 100 ホスト超, 20 秒間隔）に対する分析クエリ（OLAP）において、行ストア DB（SQLite 等）よりも劇的に高速なパフォーマンスを発揮するため。
+
+#### 2.6. データ保存形式
+
+**Parquet ファイル群**を採用する。
+
+- **設計理由:** DuckDB の分析エンジンと最も相性の良いカラム（列）型ストレージ形式であるため。分析クエリ実行時に不要な列（`metric_name`等）の I/O を完全にスキップでき、高いデータ圧縮率も実現する。
+
+#### 2.7. 依存ライブラリ一覧
+
+本ツールで使用する主要な Python ライブラリは以下の通り。
+
+- **データ収集:**
+  - `pysnmp` (v5.0.0 以上): SNMP プロトコル実装
+  - `pyVmomi` (v8.0.0 以上): vSphere API クライアント
+- **データ処理・分析:**
+  - `pandas` (v2.0.0 以上): データフレーム操作
+  - `duckdb` (v0.9.0 以上): 分析エンジン
+  - `pyarrow` (v14.0.0 以上): Parquet ファイル読み書き
+- **UI:**
+  - `streamlit` (v1.28.0 以上): Web UI フレームワーク
+  - `plotly` (v5.17.0 以上): グラフ可視化
+- **Windows 統合:**
+  - `pywin32` (v306 以上): Windows サービス実装、タスクスケジューラ制御
+- **セキュリティ:**
+  - `keyring` (v24.0.0 以上): Windows Credential Manager 連携
+- **その他:**
+  - `pyyaml` (v6.0 以上): 設定ファイル（YAML）読み書き
+  - `python-dateutil` (v2.8.0 以上): 日時処理
+  - `kaleido` (v0.2.1 以上): plotly のグラフを画像（PNG/SVG）としてエクスポート
+  - `reportlab` (v4.0.0 以上): PDF 生成（表やテキストと画像を組み合わせる場合）
+
+#### 2.8. ディレクトリ構造
+
+ツールの配布フォルダは以下の構造とする。
+
+```
+InfraAnalysisTool/
+├── python/                    # Python Embedded 環境
+│   ├── python.exe
+│   └── ...
+├── Lib/                       # Python 標準ライブラリ
+├── Scripts/                   # 依存ライブラリ（site-packages）
+├── collectors/                # コレクタープロセス
+│   ├── snmp_collector.py
+│   ├── vsphere_collector.py
+│   └── common/                # 共通モジュール
+│       ├── config_loader.py
+│       ├── data_buffer.py
+│       └── parquet_writer.py
+├── ui/                        # Streamlit UI
+│   ├── app.py                 # メインアプリケーション
+│   ├── pages/                 # 各ページ
+│   │   ├── dashboard.py
+│   │   ├── analysis.py
+│   │   └── settings.py
+│   └── backend/               # バックエンドロジック
+│       ├── query_engine.py
+│       ├── report_generator.py
+│       └── config_manager.py
+├── config/                    # 設定ファイル
+│   ├── config.yml
+│   └── collector_config.json
+├── data_storage/              # データ保存先（ユーザーが指定可能）
+│   └── date=YYYY-MM-DD/...
+├── logs/                      # ログファイル
+│   ├── snmp_collector.log
+│   ├── vsphere_collector.log
+│   └── ui.log
+├── start_analysis.bat         # UI 起動スクリプト
+├── install_service.bat        # Windows サービス登録スクリプト
+├── reset_tool.bat             # OS 設定リセットスクリプト
+└── README.md
+```
+
+#### 2.9. 起動スクリプトの詳細
+
+- **`start_analysis.bat`:**
+  - Streamlit サーバーを起動し、デフォルトブラウザで `http://localhost:8501` を開く
+  - 実装例: `python\python.exe -m streamlit run ui/app.py --server.port 8501 --browser.gatherUsageStats false`
+- **`install_service.bat`:**
+  - SNMP コレクターを Windows サービスとして登録
+  - `pywin32` の `win32serviceutil` を使用してサービスを登録
+  - 管理者権限で実行する必要がある
+- **`reset_tool.bat`:**
+  - 本ツールで変更した OS 設定をリセット（Windows サービス、タスクスケジューラ、認証情報の削除）
+  - 管理者権限で実行する必要がある
+  - 詳細は 8.6 節を参照
+
+---
+
+### 3. データ収集プロセス（コレクター）
+
+#### 3.1. 共通仕様
+
+- **実行形態:** 分析 UI（Streamlit）とは**完全に分離**した、バックグラウンドの Python プロセスとして定義する。
+  - **設計理由:** データ収集の安定性・継続性を確保するため。分析 UI を起動していなくても、データ収集がバックグラウンドで継続される。
+- **実行管理:** 各コレクターの実行方法は、コレクターの特性に応じて異なる（SNMP コレクターは Windows サービス、vSphere コレクターは Windows タスクスケジューラ）。詳細は各コレクターの節を参照。
+- **データバッファ:** データ収集プロセスは、メモリ効率の良い **Pandas DataFrame** をデータバッファとして使用する。
+  - **設計理由:** 大量の時系列データを 30 分間メモリに保持するため、Pandas のメモリ効率の良いデータ構造を必須とする。
+
+#### 3.2. SNMP コレクター
+
+- **ライブラリ:** `pysnmp` (v5.0.0 以上)
+
+##### 3.2.1. 実行方法（Windows サービス）
+
+1.  **コレクター本体 (`snmp_collector.py`):**
+
+    - 起動すると、それ自体が**常駐プロセス**となり、内部タイマー（20 秒間隔）で収集ループを開始する。
+    - `win32serviceutil.ServiceFramework` を継承したクラスとして実装する。
+    - `SvcDoRun()` メソッド内で収集ループを実行する。
+
+2.  **サービス登録:**
+
+    - ツール（UI または初回セットアップスクリプト）は、`pywin32` の `win32serviceutil.HandleCommandLine()` を使用して、この `snmp_collector.py` を **Windows サービス**として登録する。
+    - サービス名: `InfraAnalysisTool_SNMPCollector`
+    - サービスは **SYSTEM アカウント**で実行され、起動タイプを「**自動**」に設定する。
+    - サービス登録コマンド例: `python snmp_collector.py install`
+
+3.  **多重起動防止:**
+    - `snmp_collector.py` は、起動時に `win32event.CreateMutex()` を使用して Mutex を作成し、自身のプロセスがすでに実行中でないか確認する。
+    - Mutex 名: `Global\InfraAnalysisTool_SNMPCollector`
+    - 既に実行中の場合は、エラーログを出力して終了する。
+
+- **設計理由:** 20 秒間隔の収集はタスクスケジューラの起動オーバーヘッドが大きすぎるため、常駐プロセス方式を採用する。Windows サービスとして SYSTEM アカウントで実行することで、ユーザーログオフ後も継続的にデータ収集が実行され、OS 再起動後も自動で収集が再開される。これにより、耐障害性と可用性を確保する。
+
+##### 3.2.2. 収集パラメータ
+
+- **収集間隔:** 20 秒ごと（固定）
+- **書き込み周期:** **30 分ごと**。収集データを 30 分間メモリにバッファリングし、1 つの Parquet ファイルとして書き出す。
+- **SNMP タイムアウト:** 各ホストへの SNMP リクエストのタイムアウトは **3 秒**とする。
+- **SNMP リトライ:** タイムアウト時は **1 回**リトライする（最大 2 回の試行）。
+
+##### 3.2.3. 並列処理（マルチスレッド）
+
+- **スレッドプール:**
+
+  - `concurrent.futures.ThreadPoolExecutor` を使用する。
+  - **スレッド数:** 対象ホスト数に応じて動的に決定。最小 5 スレッド、最大 50 スレッド。
+  - 計算式: `min(max(対象ホスト数 // 10, 5), 50)`
+  - **設計理由:** シングルスレッドでの逐次処理では、ネットワーク遅延やタイムアウトにより、収集間隔（20 秒）を到底守れないため。スレッド数を動的に調整することで、ホスト数が少ない場合のリソース浪費を防ぎ、多い場合の収集遅延を防ぐ。
+
+- **収集バッチの実行:**
+  - 各スレッドは 1 つのホストに対して SNMP GET/WALK を実行する。
+  - 全ホストの収集が完了するか、20 秒のタイムアウトに達するまで待機する。
+  - 20 秒以内に完了しなかったホストは、次回の収集サイクルで再試行する。
+
+##### 3.2.4. データバッファ管理
+
+- **バッファ構造:**
+
+  - Pandas DataFrame を使用。カラム: `timestamp`, `host`, `metric_name`, `value`, `attributes`
+  - 30 分間（約 90 レコード/ホスト）のデータを保持する。
+  - メモリ使用量の目安: 100 ホスト × 10 メトリクス × 90 レコード × 100 バイト ≈ 9 MB（概算）
+
+- **バッファフラッシュ:**
+  - 30 分ごと、またはバッファサイズが 2GB を超過した場合に、Parquet ファイルとして書き出す。
+  - 書き込み後、バッファをクリアする。
+
+##### 3.2.5. ログ管理
+
+- **ログファイル:** `logs/snmp_collector.log`
+- **ログレベル:** INFO（通常動作）、WARNING（タイムアウト、リトライ）、ERROR（致命的エラー）
+- **ログローテーション:** ファイルサイズが 10 MB に達したら、`snmp_collector.log.1`, `snmp_collector.log.2` のようにローテーション。最大 5 ファイル保持。
+- **ログフォーマット:** `[YYYY-MM-DD HH:MM:SS] [LEVEL] [機能名] メッセージ`
+
+#### 3.3. vSphere コレクター (仮想化基盤)
+
+- **ライブラリ:** `pyVmomi` (v8.0.0 以上)
+
+##### 3.3.1. 実行方法
+
+- **実行方法:** Windows タスクスケジューラにより **30 分ごと** にバッチ実行される。
+- **タスク名:** `InfraAnalysisTool_vSphereCollector`
+- **実行アカウント:** 現在ログオン中のユーザーアカウント（vCenter 認証情報へのアクセス権限が必要）
+- **多重起動防止:** 起動時にロックファイル（`logs/vsphere_collector.lock`）を確認し、既に存在する場合は処理をスキップする。処理完了時にロックファイルを削除する。
+
+##### 3.3.2. 収集対象
+
+- **収集対象:** vCenter の `PerformanceManager` が提供する 20 秒粒度のリアルタイム統計。
+- **対象選択（vSphere API 利用）:**
+  - UI（設定画面）において、ユーザーが分析カテゴリ（**クラスタ単位**, **ESXi 単位**, **VM 単位**）を選択し、それぞれで監視対象を指定できる。
+  - 監視対象の ID（ManagedObjectReference）は `config.yml` に保存される。
+
+##### 3.3.3. 収集メトリクス定義
+
+データ量および vCenter への負荷を管理するため、収集するメトリクスを以下の通り定義する。
+
+- **ESXi ホスト (デフォルト有効):**
+
+  - **CPU:**
+    - `cpu.usage.average` (%): CPU 使用率
+    - `cpu.readiness.average` (%): CPU Ready 時間
+    - `cpu.costop.average` (%): Co-Stop 時間（後述の換算処理あり）
+  - **Memory:**
+    - `mem.usage.average` (%): メモリ使用率
+  - **Disk:**
+    - `disk.read.average` (MBps): 読み込みスループット（デバイス/データストア単位）
+    - `disk.write.average` (MBps): 書き込みスループット（デバイス/データストア単位）
+    - `disk.readLatency.average` (ms): 読み込みレイテンシ（デバイス/データストア単位）
+    - `disk.writeLatency.average` (ms): 書き込みレイテンシ（デバイス/データストア単位）
+  - **Network:**
+    - `net.received.average` (MBps): 受信スループット（vmnic 単位）
+    - `net.transmitted.average` (MBps): 送信スループット（vmnic 単位）
+
+- **仮想マシン(VM):**
+  - **CPU (デフォルト有効):**
+    - `cpu.usage.average` (%): CPU 使用率
+    - `cpu.readiness.average` (%): CPU Ready 時間
+    - `cpu.costop.average` (%): Co-Stop 時間（後述の換算処理あり）
+  - **Memory (デフォルト無効):**
+    - `mem.usage.average` (%): メモリ使用率
+  - **Disk (デフォルト無効):**
+    - `disk.read.average` (MBps): 読み込みスループット（VM 合計値）
+    - `disk.write.average` (MBps): 書き込みスループット（VM 合計値）
+  - **Network (デフォルト無効):**
+    - `net.received.average` (MBps): 受信スループット（VM 合計値）
+    - `net.transmitted.average` (MBps): 送信スループット（VM 合計値）
+
+##### 3.3.4. メトリクス単位の変換
+
+- **`cpu.readiness.average`:** vCenter が提供する%値をそのまま使用する。
+- **`cpu.costop.average` (%):** vCenter に%単位のメトリクスが無いため、`cpu.costop.summation` (ms) を取得し、コレクター側で以下の計算を行い、**%に換算**してから保存する。
+  - 計算式: `(costop.summation / 20000) * 100`
+  - 20 秒（20000 ms）を基準として、Co-Stop 時間の割合を計算する。
+
+##### 3.3.5. QueryPerf API の使用方法
+
+- **バッチ取得:**
+
+  - `PerformanceManager.QueryPerf()` メソッドを使用し、複数の監視対象（ESXi/VM）のメトリクスを vCenter から**一括（バッチ）で取得**する。
+  - すべての監視対象オブジェクトのメトリクスを、1 回の API 呼び出しで一括取得する。
+
+- **取得期間:**
+
+  - データ取得は毎時 2 回に分割して実施する。
+    - 1 回目: 毎時 **0 分 0 秒〜29 分 40 秒** の範囲で取得（`startTime`：その時点の直近 0 分 0 秒、`endTime`：同 29 分 40 秒）。
+    - 2 回目: 毎時 **30 分 0 秒〜59 分 40 秒** の範囲で取得（`startTime`：その時点の直近 30 分 0 秒、`endTime`：同 59 分 40 秒）。
+  - 各範囲とも 20 秒間隔のデータポイントを取得する（`intervalId = 20`）。
+
+- **タイムアウト:**
+  - API 呼び出しのタイムアウトは **60 秒**とする。
+  - タイムアウト時は、該当バッチをスキップし、ログに記録する。
+
+##### 3.3.6. 並列処理
+
+- **データパース処理の並列化:**
+
+  - 取得した結果のパース処理（データ整形）がボトルネックになる場合、当該処理も**マルチスレッド**で並列化する。
+  - スレッド数: CPU コア数に応じて動的に決定（最大 8 スレッド）。
+
+- **設計理由:** API 呼び出しをオブジェクトごとに逐次実行すると、30 分の実行時間内に完了しない可能性があるため、API のバッチ機能を最大限に活用する。
+
+##### 3.3.7. ログ管理
+
+- **ログファイル:** `logs/vsphere_collector.log`
+- **ログレベル:** INFO（通常動作）、WARNING（タイムアウト、API エラー）、ERROR（致命的エラー）
+- **ログローテーション:** ファイルサイズが 10 MB に達したら、`vsphere_collector.log.1`, `vsphere_collector.log.2` のようにローテーション。最大 5 ファイル保持。
+- **ログフォーマット:** `[YYYY-MM-DD HH:MM:SS] [LEVEL] [機能名] メッセージ`
+
+#### 3.4. データ収集の堅牢性（エラーハンドリング）
+
+- **3.4.1. 収集ループのオーバーラン対策（SNMP）:**
+  - SNMP コレクター（常駐）は、マルチスレッドでの 1 回の収集バッチ（全対象ホストへの GET/WALK）にかかった時間を計測する。
+  - 万が一、1 回のバッチが 20 秒を超過した場合（例: タイムアウト多発）、次の収集タイミングはスキップし、遅延をログに記録する。ループ完了後、次の 20 秒の区切りから収集を再開する。
+  - **設計理由:** 収集遅延が累積し、リソースを際限なく消費する「デススパイラル」状態に陥ることを防ぐため。
+- **3.4.2. ジョブ多重起動防止（vSphere）:**
+  - vSphere コレクターは、起動時にロックファイルを確認する。前回の収集・書き込み処理がまだ実行中の場合、今回のジョブは何もせず**スキップ**し、多重起動とリソース競合を防ぐ。
+- **3.4.3. 処理遅延の検知・記録:**
+  - 各コレクターは、Parquet ファイルへの書き込み処理が完了した時刻を、ログファイルに記録する。
+- **3.4.4. UI への警告:**
+  - Streamlit アプリは、この「最終書き込み完了時刻」を監視する。最終書き込み時刻が現在時刻から著しく（例: 1 時間以上）遅れている場合、UI 上に「**データ収集中または遅延の可能性があります**」といった警告メッセージを表示するバックエンドロジックを実装する。
+
+---
+
+### 4. データ保存（ストレージ設計）
+
+#### 4.1. 設計思想 (パーティション列 vs データ列)
+
+本ツールの分析性能は、DuckDB の「**パーティション・プルーニング（枝刈り）**」機能によって担保される。この機能を最大化するため、データ列を「**パーティション列**」と「**データ列**」に厳密に分離する。
+
+- **① パーティション列 (フォルダ名として保存)**
+  - **役割:** データを絞り込むための**主要な検索キー（インデックス）**。`WHERE`句で頻繁に使用される列。
+  - **対象:** `date`, `host`。vSphere 環境では `cluster`, `esxi_host` も対象とする。
+  - **動作:** DuckDB はクエリ実行時、まずフォルダ名を見て、`WHERE`句に合致しないフォルダ（パーティション）を**スキャン対象から除外**する。これにより、Parquet ファイルを開く前に処理対象を劇的に減らす。
+- **② データ列 (Parquet ファイル内部に保存)**
+  - **役割:** 実際の**測定値**および**メトリクスの文脈**を示す列。`SELECT`句や`AVG()`などの集計関数、またはドリルダウンで使用される。
+  - **対象:** `timestamp`, `metric_name`, `value`, `attributes`。
+
+#### 4.2. ファイル配置（Hive パーティショニング）
+
+`key=value` 形式のディレクトリ名を採用する。
+
+- **SNMP 機器の構造（例）:**
+  ```
+  data_storage/
+  ├── date=2025-11-15/
+  │   └── host=switch-01.local/
+  │       └── snmp_metrics_1700.parquet
+  ```
+- **vSphere 機器の構造（例）:**
+  ```
+  data_storage/
+  ├── date=2025-11-15/
+  │   └── cluster=Cluster-A/
+  │       ├── esxi_host=esxi-01.local/
+  │       │   ├── host=esxi-01.local/
+  │       │   │   └── vsphere_metrics_1700.parquet
+  │       │   └── host=vm-web-01/
+  │       │       └── vsphere_metrics_1700.parquet
+  │       └── esxi_host=esxi-02.local/
+  │           └── host=vm-db-01/
+  │               └── vsphere_metrics_1700.parquet
+  ```
+- **設計理由:** vSphere 環境において「クラスタ単位」「ESXi 単位」での高速な集計を可能にするため。
+
+##### 4.2.1. ファイル命名規則
+
+- **ファイル名形式:** `{コレクター種別}_metrics_{時刻}.parquet`
+  - コレクター種別: `snmp` または `vsphere`
+  - 時刻: `HHMM` 形式（例: `1700` = 17:00）
+  - 例: `snmp_metrics_1700.parquet`, `vsphere_metrics_1730.parquet`
+- **一時ファイル名:** 書き込み中は `{ファイル名}.tmp` として保存し、完了後にリネームする。
+- **ファイルサイズの目安:** 1 ファイルあたり 1-10 MB（ホスト数・メトリクス数による）
+
+#### 4.3. vMotion 発生時の動作と分析
+
+- **vMotion 時の動作:** vMotion により VM（例: `vm-web-01`）が `esxi-01` から `esxi-02` へ移動した場合、次の 30 分バッチ（`_1730.parquet`）は、`esxi_host=esxi-02/host=vm-web-01/` のパーティションに書き込まれる。
+- **VM 中心の分析:** ユーザーが `WHERE host = 'vm-web-01'` で検索した場合、DuckDB は `esxi_host` パーティションを無視し、両方の場所からデータを集約して連続したグラフを返す。
+- **ESXi 中心の分析:** ユーザーが `WHERE esxi_host = 'esxi-01'` で検索した場合、vMotion 後は `vm-web-01` の負荷が除外された、ESXi ホストの「あるがまま」の負荷が描画される。
+- **vMotion 履歴の取得:** 「VM 中心の分析」時に、`SELECT`句にパーティションキーである `esxi_host` を含めることで、`timestamp`ごとの所属ホスト履歴（`esxi_host`列）も同時に取得可能。
+  - **クエリ例:** `SELECT timestamp, value, esxi_host FROM 'data_storage/**/*.parquet' WHERE host = 'vm-web-01'`
+
+#### 4.4. データスキーマ (Parquet ファイル内部)
+
+Parquet ファイル内部には、**パーティション列（`date`, `host`, `cluster`, `esxi_host`）は含めない**。
+
+##### 4.4.1. カラム定義
+
+- **`timestamp` (TIMESTAMP):**
+
+  - 測定日時（20 秒ごとの正確なタイムスタンプ）
+  - 形式: ISO 8601（例: `2025-11-15 17:00:00`）
+  - タイムゾーン: UTC（保存時は UTC、表示時はローカルタイムゾーンに変換）
+
+- **`metric_name` (VARCHAR):**
+
+  - メトリクス名（例: `cpu.usage.average`, `net.bps.in`, `disk.read.average`）
+  - 命名規則: `{カテゴリ}.{項目}.{集計方法}` または `{カテゴリ}.{項目}`
+
+- **`value` (DOUBLE):**
+
+  - 測定値（正規化・計算後の値）
+  - 単位はメトリクスごとに統一（CPU/メモリ: %, ネットワーク: bps, ディスク: MBps または ms）
+
+- **`attributes` (VARCHAR, JSON 文字列):**
+  - メトリクスの文脈（どの部品か）を示す属性の集合
+  - **実装方式:** Parquet の MAP 型は DuckDB でサポートされているが、クエリの複雑さを避けるため、**JSON 文字列**として保存する
+  - 例: `{"ifName": "GigabitEthernet0/1", "ifIndex": "10101"}`
+  - DuckDB での JSON 解析: `attributes::JSON->>'ifName'` のように JSON 関数を使用
+
+#### 4.5. `attributes` カラムの具体的な設計
+
+`attributes` は、`host` と `metric_name` で絞り込んだ後、さらに「**どのインスタンス（部品）か**」を特定するための詳細情報を格納する。JSON 文字列として保存する。
+
+- **SNMP (NW 機器):**
+
+  - **`metric_name`:** `net.bps.in`, `net.bps.out`, `net.error.rate.in`, `net.error.rate.out`, `net.discard.rate.in`, `net.discard.rate.out`
+  - **`attributes`:** `{"ifName": "GigabitEthernet0/1", "ifIndex": "10101", "ifAlias": "Uplink to CoreSW"}`
+  - **理由:** どの物理ポートのトラフィック、エラー率、破棄率かを示すため。
+
+- **ESXi (vmnic):**
+
+  - **`metric_name`:** `net.received.average`, `net.transmitted.average`
+  - **`attributes`:** `{"vmnic": "vmnic0"}`
+  - **理由:** どの vmnic のトラフィックかを示すため。
+
+- **ESXi (Disk):**
+
+  - **`metric_name`:** `disk.read.average`, `disk.write.average`, `disk.readLatency.average`
+  - **`attributes`:** `{"device": "naa.6000c29...", "datastore": "datastore1"}`
+  - **理由:** どの物理デバイス/データストアのメトリクスかを示すため。
+
+- **仮想マシン(VM) (Disk/Network):**
+  - **`metric_name`:** `disk.read.average`, `net.received.average` など（合計値）
+  - **`attributes`:** `{}` (空の JSON オブジェクト)
+  - **理由:** VM のメトリクスは「合計値」として収集するため、個別のインスタンス（vDisk/vNIC）を区別する属性は不要。
+
+#### 4.6. 書き込み競合対策
+
+書き込みプロセスは、データをまず一時ファイル（`*.parquet.tmp`）として書き出す。書き込みが完全に完了した後、ファイルシステムのアトミックな**リネーム操作**（`os.rename()`）により、正規のファイル名（`*.parquet`）に変更する。
+
+- **設計理由:** DuckDB が書き込み中の中途半端なファイルを読み取ることを防ぐため。
+
+#### 4.7. DuckDB クエリ例
+
+##### 4.7.1. 基本的な時系列データ取得
+
+```sql
+-- 特定ホストの CPU 使用率を取得
+SELECT
+    timestamp,
+    value
+FROM 'data_storage/date=2025-11-15/host=esxi-01.local/*.parquet'
+WHERE metric_name = 'cpu.usage.average'
+ORDER BY timestamp;
+```
+
+##### 4.7.2. パーティション・プルーニングを活用したクエリ
+
+```sql
+-- 複数ホストのデータを集約（パーティション・プルーニングにより、不要なフォルダをスキップ）
+SELECT
+    date,
+    host,
+    timestamp,
+    AVG(value) as avg_cpu_usage
+FROM 'data_storage/**/*.parquet'
+WHERE date >= '2025-11-15'
+  AND date <= '2025-11-20'
+  AND host IN ('esxi-01.local', 'esxi-02.local')
+  AND metric_name = 'cpu.usage.average'
+GROUP BY date, host, timestamp
+ORDER BY date, host, timestamp;
+```
+
+##### 4.7.3. attributes カラムの JSON 解析
+
+```sql
+-- 特定のインターフェース（ifName）のトラフィックを取得
+SELECT
+    timestamp,
+    value,
+    attributes::JSON->>'ifName' as interface_name
+FROM 'data_storage/date=2025-11-15/host=switch-01.local/*.parquet'
+WHERE metric_name = 'net.bps.in'
+  AND attributes::JSON->>'ifName' = 'GigabitEthernet0/1'
+ORDER BY timestamp;
+```
+
+##### 4.7.4. vMotion 対応のクエリ
+
+```sql
+-- VM 中心の分析（vMotion 後も連続したデータを取得）
+SELECT
+    timestamp,
+    value,
+    esxi_host
+FROM 'data_storage/**/*.parquet'
+WHERE host = 'vm-web-01'
+  AND metric_name = 'cpu.usage.average'
+ORDER BY timestamp;
+```
+
+---
+
+### 5. データ処理・変換
+
+- **設計理由:** 生データ（カウンター値や KB 単位など）のままでは分析が困難なため、収集プロセスが Parquet に書き込む前に、人間が解釈しやすい「指標」に変換する。
+
+#### 5.1. SNMP データ処理
+
+##### 5.1.1. カウンター値の差分計算
+
+- **bps（ビット/秒）の計算:**
+
+  - 対象 OID: `ifInHCOctets` (1.3.6.1.2.1.31.1.1.1.6), `ifOutHCOctets` (1.3.6.1.2.1.31.1.1.1.10)
+  - 計算式: `bps = ((現在値 - 前回値) * 8) / 取得間隔(秒)`
+  - 例: 前回値 `1000000` オクテット、現在値 `1001000` オクテット、間隔 20 秒の場合
+    - `bps = ((1001000 - 1000000) * 8) / 20 = 400 bps`
+
+- **pps（パケット/秒）の計算:**
+
+  - 対象 OID: `ifInErrors` (1.3.6.1.2.1.2.2.1.14), `ifOutErrors` (1.3.6.1.2.1.2.2.1.20), `ifInDiscards` (1.3.6.1.2.1.2.2.1.13), `ifOutDiscards` (1.3.6.1.2.1.2.2.1.19)
+  - 計算式: `pps = (現在値 - 前回値) / 取得間隔(秒)`
+  - 例: 前回値 `100` パケット、現在値 `105` パケット、間隔 20 秒の場合
+    - `pps = (105 - 100) / 20 = 0.25 pps`
+
+- **エラー率・破棄率（%）の計算:**
+  - **エラー率:**
+    - 対象 OID:
+      - エラーパケット数: `ifInErrors` (1.3.6.1.2.1.2.2.1.14), `ifOutErrors` (1.3.6.1.2.1.2.2.1.20)
+      - 総パケット数: `ifHCInUcastPkts` (1.3.6.1.2.1.31.1.1.1.7) + `ifHCInMulticastPkts` (1.3.6.1.2.1.31.1.1.1.8) + `ifHCInBroadcastPkts` (1.3.6.1.2.1.31.1.1.1.9)（受信）、`ifHCOutUcastPkts` (1.3.6.1.2.1.31.1.1.1.11) + `ifHCOutMulticastPkts` (1.3.6.1.2.1.31.1.1.1.12) + `ifHCOutBroadcastPkts` (1.3.6.1.2.1.31.1.1.1.13)（送信）
+    - 計算式:
+      - 受信エラー率: `error_rate_in = (ifInErrors差分 / 総受信パケット数差分) * 100`
+      - 送信エラー率: `error_rate_out = (ifOutErrors差分 / 総送信パケット数差分) * 100`
+    - 例: 受信エラーパケット差分 `10`、総受信パケット数差分 `100000` の場合
+      - `error_rate_in = (10 / 100000) * 100 = 0.01%`
+  - **破棄率:**
+    - 対象 OID:
+      - 破棄パケット数: `ifInDiscards` (1.3.6.1.2.1.2.2.1.13), `ifOutDiscards` (1.3.6.1.2.1.2.2.1.19)
+      - 総パケット数: エラー率と同様
+    - 計算式:
+      - 受信破棄率: `discard_rate_in = (ifInDiscards差分 / 総受信パケット数差分) * 100`
+      - 送信破棄率: `discard_rate_out = (ifOutDiscards差分 / 総送信パケット数差分) * 100`
+    - 例: 受信破棄パケット差分 `5`、総受信パケット数差分 `100000` の場合
+      - `discard_rate_in = (5 / 100000) * 100 = 0.005%`
+  - **注意事項:**
+    - 総パケット数差分が `0` の場合は、エラー率・破棄率を `0%` として記録する（ゼロ除算を防ぐため）
+
+##### 5.1.2. カウンターのロールオーバー検知
+
+- **ロールオーバー検知ロジック:**
+
+  - カウンター値が 32 ビット（最大値: 4294967295）または 64 ビット（最大値: 18446744073709551615）の場合、最大値に達すると 0 に戻る（ロールオーバー）。
+  - 検知条件: `現在値 < 前回値` かつ `前回値 > 最大値 * 0.9`（90% 以上使用していた場合）
+  - ロールオーバー検知時: 差分を `0` として記録する（正確な計算は困難なため）。
+
+- **異常値の処理:**
+  - 負の差分値: `0` として記録（ロールオーバーまたは機器リセットの可能性）。
+  - 異常に大きな差分値（例: 前回値の 10 倍以上）: `None`（NULL）として記録し、ログに警告を出力。
+
+##### 5.1.3. Gauge 値の処理
+
+- **Gauge 型 OID（例: CPU 使用率、メモリ使用率）:**
+  - 差分計算は不要。取得した値をそのまま使用する。
+  - 値の範囲チェック: 0-100（%）の範囲外の値は `None` として記録。
+
+#### 5.2. vSphere データ処理
+
+##### 5.2.1. メトリクス値の正規化
+
+- **CPU 使用率 (`cpu.usage.average`):**
+
+  - vCenter から取得した%値をそのまま使用（0-100 の範囲）。
+
+- **CPU Ready (`cpu.readiness.average`):**
+
+  - vCenter から取得した%値をそのまま使用（0-100 の範囲）。
+
+- **CPU Co-Stop (`cpu.costop.average`):**
+
+  - vCenter から `cpu.costop.summation` (ms) を取得。
+  - 計算式: `costop_percent = (costop_summation / 20000) * 100`
+  - 20 秒（20000 ms）を基準として、Co-Stop 時間の割合を計算。
+  - 例: `costop_summation = 1000 ms` の場合
+    - `costop_percent = (1000 / 20000) * 100 = 5%`
+
+- **メモリ使用率 (`mem.usage.average`):**
+
+  - vCenter から取得した%値をそのまま使用（0-100 の範囲）。
+
+- **ディスク/ネットワークスループット:**
+
+  - vCenter から取得した KBps 値を MBps に変換して使用。
+  - 計算式: `mbps = kbps / 1024`
+  - 例: vCenter から `10240 KBps` を取得した場合、`10240 / 1024 = 10 MBps` として保存する。
+
+- **ディスクレイテンシ:**
+  - vCenter から取得した ms 値をそのまま使用。
+
+##### 5.2.2. 異常値の処理
+
+- **NULL 値:**
+
+  - vCenter から NULL が返された場合、`None` として記録（データポイント欠損）。
+
+- **範囲外の値:**
+
+  - CPU/メモリ使用率が 0-100 の範囲外の場合、`None` として記録し、ログに警告を出力。
+
+- **負の値:**
+  - スループットやレイテンシが負の値の場合、`None` として記録。
+
+---
+
+### 6. UI・分析機能（バックエンドロジック）
+
+- Streamlit UI からのトリガーに基づき、DuckDB でクエリを実行するロジックを実装する。
+
+#### 6.1. ダッシュボード（通常閲覧モード）
+
+UI の主要機能として、ユーザーが指定した条件（ホスト、メトリクス、期間、グラフ種別［折れ線, 散布図］）に基づき、DuckDB からデータを取得し、可視化するバックエンド機能。
+
+- **設計理由:** 分析機能とは別に、通常の時系列データを自由に閲覧・ドリルダウンできる機能がツールの基本となるため。
+
+##### 6.1.1. クエリ生成ロジック
+
+- **UI カテゴリ連携:**
+
+  - 「クラスタ単位」が選択された場合: `WHERE cluster IN (...)` でクエリ。
+  - 「ESXi 単位」が選択された場合: `WHERE esxi_host IN (...)` でクエリ。
+  - 「VM 単位」が選択された場合: `WHERE host IN (...)` でクエリ。
+
+- **基本的なクエリ例:**
+
+```sql
+SELECT
+    timestamp,
+    value
+FROM 'data_storage/**/*.parquet'
+WHERE date >= '2025-11-15'
+  AND date <= '2025-11-20'
+  AND host IN ('esxi-01.local', 'esxi-02.local')
+  AND metric_name = 'cpu.usage.average'
+ORDER BY timestamp;
+```
+
+- **集計オプション:**
+  - 時間単位集計: `GROUP BY DATE_TRUNC('hour', timestamp)` で時間単位に集約
+  - 平均値: `AVG(value)`
+  - 最大値: `MAX(value)`
+  - 最小値: `MIN(value)`
+
+#### 6.2. ベースライン分析
+
+指定された期間（例: 過去 30 日）のデータを統計処理（曜日・時間帯別の中央値、95 パーセンタイル値等）し、そのベースラインから大きく逸脱している**異常値の期間を特定**するロジック。
+
+- **設計理由:** 過去に発生した性能スパイクや予期せぬ落ち込みが「いつ発生したか」を特定することで、障害の事後調査を支援するため。
+
+##### 6.2.1. ベースライン計算アルゴリズム
+
+- **ステップ 1: 曜日・時間帯別の統計値を計算**
+
+  - 過去 N 日（デフォルト: 30 日）のデータから、曜日（月-日）と時間帯（0-23 時）ごとに以下の統計値を計算:
+    - 中央値（MEDIAN）
+    - 95 パーセンタイル値（PERCENTILE_CONT(0.95)）
+    - 5 パーセンタイル値（PERCENTILE_CONT(0.05)）
+
+- **ステップ 2: 異常値の検出**
+
+  - 各データポイントについて、対応する曜日・時間帯のベースラインと比較:
+    - 異常値の条件: `value > 95パーセンタイル値 * 1.5` または `value < 5パーセンタイル値 * 0.5`
+  - 連続する異常値の期間をグループ化し、期間として返す。
+
+- **クエリ例:**
+
+```sql
+-- ベースライン計算（曜日・時間帯別）
+WITH baseline AS (
+  SELECT
+    EXTRACT(DOW FROM timestamp) as day_of_week,
+    EXTRACT(HOUR FROM timestamp) as hour,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY value) as median,
+    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY value) as p95,
+    PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY value) as p05
+  FROM 'data_storage/**/*.parquet'
+  WHERE date >= CURRENT_DATE - INTERVAL '30 days'
+    AND date < CURRENT_DATE
+    AND host = 'esxi-01.local'
+    AND metric_name = 'cpu.usage.average'
+  GROUP BY day_of_week, hour
+)
+-- 異常値の検出
+SELECT
+    timestamp,
+    value,
+    baseline.p95,
+    baseline.p05
+FROM 'data_storage/**/*.parquet' data
+JOIN baseline ON
+    EXTRACT(DOW FROM data.timestamp) = baseline.day_of_week
+    AND EXTRACT(HOUR FROM data.timestamp) = baseline.hour
+WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+  AND host = 'esxi-01.local'
+  AND metric_name = 'cpu.usage.average'
+  AND (value > baseline.p95 * 1.5 OR value < baseline.p05 * 0.5)
+ORDER BY timestamp;
+```
+
+#### 6.3. ボトルネック分析
+
+対象ホスト（ESXi/VM）の主要リソース（CPU, メモリ, ディスク, NW）のメトリクスを一括取得し、定義済みルールに基づき、パフォーマンスを制限している要因を評価するロジック。
+
+##### 6.3.1. 評価ロジック
+
+各リソースに対し、以下の観点で評価する。
+
+1.  **使用率 (Utilization):** リソースがどれだけビジーか
+
+    - CPU: `cpu.usage.average > 80%` → 警告
+    - メモリ: `mem.usage.average > 90%` → 警告
+    - ディスク: `disk.read.average + disk.write.average > 80% of 最大スループット` → 警告
+    - ネットワーク: `net.received.average + net.transmitted.average > 80% of 最大帯域` → 警告
+
+2.  **飽和度 (Saturation):** リソースが処理しきれず待たされている度合い
+
+    - CPU: `cpu.readiness.average > 5%` → 警告（CPU Ready が高い）
+    - CPU: `cpu.costop.average > 5%` → 警告（Co-Stop が高い）
+    - ディスク: `disk.readLatency.average > 20 ms` または `disk.writeLatency.average > 20 ms` → 警告
+
+3.  **エラー (Errors):** 明示的なエラーの発生
+    - ネットワーク: `net.error.rate.in > 0.1%` または `net.error.rate.out > 0.1%` → 警告（SNMP）
+    - ネットワーク: `net.discard.rate.in > 0.1%` または `net.discard.rate.out > 0.1%` → 警告（SNMP）
+    - ディスク: `disk.errors > 0` → 警告
+
+##### 6.3.2. ボトルネック判定ルール
+
+- **判定ロジック:**
+
+  - 各リソースについて、上記の 3 つの観点で評価し、警告が 2 つ以上発生した場合、そのリソースを「ボトルネック」と判定する。
+  - 複数のリソースがボトルネックと判定された場合、優先順位は以下の通り:
+    1. CPU（最も重要）
+    2. ディスク
+    3. メモリ
+    4. ネットワーク
+
+- **クエリ例:**
+
+```sql
+-- CPU ボトルネック判定
+SELECT
+    timestamp,
+    host,
+    MAX(CASE WHEN metric_name = 'cpu.usage.average' THEN value END) as cpu_usage,
+    MAX(CASE WHEN metric_name = 'cpu.readiness.average' THEN value END) as cpu_ready,
+    MAX(CASE WHEN metric_name = 'cpu.costop.average' THEN value END) as cpu_costop,
+    CASE
+        WHEN MAX(CASE WHEN metric_name = 'cpu.usage.average' THEN value END) > 80 THEN 1 ELSE 0
+    END +
+    CASE
+        WHEN MAX(CASE WHEN metric_name = 'cpu.readiness.average' THEN value END) > 5 THEN 1 ELSE 0
+    END +
+    CASE
+        WHEN MAX(CASE WHEN metric_name = 'cpu.costop.average' THEN value END) > 5 THEN 1 ELSE 0
+    END as bottleneck_score
+FROM 'data_storage/**/*.parquet'
+WHERE date >= CURRENT_DATE - INTERVAL '1 day'
+  AND host IN ('esxi-01.local', 'esxi-02.local')
+  AND metric_name IN ('cpu.usage.average', 'cpu.readiness.average', 'cpu.costop.average')
+GROUP BY timestamp, host
+HAVING bottleneck_score >= 2
+ORDER BY timestamp DESC;
+```
+
+---
+
+### 7. UI 連携機能（バックエンド）
+
+#### 7.1. レポート機能
+
+**専用のレポート作成画面**用のバックエンド機能を実装する。
+
+- **CSV:** UI で設定された閾値に基づき DuckDB でデータをフィルタリングし、CSV を生成する。
+- **PDF:** 分析サマリ表（統計表）およびグラフデータを PDF として生成する。
+- **設計理由:** ダッシュボードでの閲覧とは別に、オフラインでの報告や共有のために、固定フォーマットの出力機能が必要なため。
+
+#### 7.2. タスクスケジューラ制御
+
+`subprocess` モジュールを使用し、Windows の `schtasks.exe` コマンドを実行することで、収集ジョブの有効化/無効化を制御する API を Streamlit の「設定」画面に提供する。
+
+- **設計理由:** 収集を一時停止したい場合などに、ユーザーが OS の GUI（タスクスケジューラ）を直接操作する手間を省き、ツール内で完結できるようにするため。
+
+#### 7.3. SNMP OID テスト機能
+
+Streamlit の「設定」画面に、指定したホストと OID で「今すぐ SNMP GET」を実行し、生データを表示する機能を提供する。
+
+- **設計理由:** ユーザーがカスタム OID の計算方法（Gauge/Counter）を判断する際、実際の取得値（例: `15` なのか `15342342` なのか）を確認できる必要があるため。
+
+---
+
+### 8. 設定・管理
+
+#### 8.1. 設定ファイル（競合対策）
+
+UI（Streamlit）とコレクター（バックグラウンドプロセス）間の設定ファイル競合を避けるため、以下の 2 段階構成とする。
+
+1.  `config.yml`: Streamlit UI が管理するマスター設定ファイル。
+2.  `collector_config.json`: UI で設定保存時、コレクターが必要とする情報（接続先、OID リスト等）だけを抽出して生成する**読み取り専用ファイル**。
+3.  各コレクタープロセスは、この `collector_config.json` のみを参照する。
+
+- **設計理由:** ユーザーが UI で設定変更中（`config.yml`書き込み中）に、コレクターが中途半端な設定ファイルを読み込むことを防ぐため。
+
+##### 8.1.1. config.yml スキーマ
+
+```yaml
+# データストレージ設定
+storage:
+  data_directory: "data_storage" # データ保存先ディレクトリ（相対パスまたは絶対パス）
+  retention_policy:
+    max_size_gb: 100 # ストレージ容量の上限（GB）
+
+# SNMP 設定
+snmp:
+  enabled: true
+  hosts:
+    - hostname: "switch-01.local"
+      community: "public" # 認証情報は Windows Credential Manager に保存
+      version: 2 # 1, 2, 3
+      timeout: 3 # タイムアウト（秒）
+      retries: 1
+  custom_oids:
+    - metric_name: "custom.cpu.usage"
+      oid: "1.3.6.1.4.1.xxxxx.1.1.1.0"
+      calculation_type: "gauge" # gauge または counter
+      unit: "percent"
+
+# vSphere 設定
+vsphere:
+  enabled: true
+  vcenter:
+    hostname: "vcenter.example.com"
+    port: 443
+    username: "admin" # 認証情報は Windows Credential Manager に保存
+    ssl_verify: true
+  inventory:
+    clusters: [] # 監視対象クラスタ（空の場合は全クラスタ）
+    esxi_hosts: [] # 監視対象 ESXi ホスト（空の場合は全ホスト）
+    vms: [] # 監視対象 VM（空の場合は全 VM）
+  metrics:
+    esxi:
+      cpu: true
+      memory: true
+      disk: true
+      network: true
+    vm:
+      cpu: true
+      memory: false # デフォルト無効
+      disk: false # デフォルト無効
+      network: false # デフォルト無効
+
+# UI 設定
+ui:
+  port: 8501
+  theme: "light" # light または dark
+```
+
+##### 8.1.2. collector_config.json スキーマ
+
+```json
+{
+  "snmp": {
+    "enabled": true,
+    "hosts": [
+      {
+        "hostname": "switch-01.local",
+        "community_key": "switch-01.local_public", // Windows Credential Manager の参照キー
+        "version": 2,
+        "timeout": 3,
+        "retries": 1
+      }
+    ],
+    "custom_oids": [
+      {
+        "metric_name": "custom.cpu.usage",
+        "oid": "1.3.6.1.4.1.xxxxx.1.1.1.0",
+        "calculation_type": "gauge",
+        "unit": "percent"
+      }
+    ]
+  },
+  "vsphere": {
+    "enabled": true,
+    "vcenter": {
+      "hostname": "vcenter.example.com",
+      "port": 443,
+      "username_key": "vcenter.example.com_admin", // Windows Credential Manager の参照キー
+      "ssl_verify": true
+    },
+    "inventory": {
+      "clusters": ["cluster-1"],
+      "esxi_hosts": ["esxi-01.local"],
+      "vms": ["vm-web-01"]
+    },
+    "metrics": {
+      "esxi": {
+        "cpu": true,
+        "memory": true,
+        "disk": true,
+        "network": true
+      },
+      "vm": {
+        "cpu": true,
+        "memory": false,
+        "disk": false,
+        "network": false
+      }
+    }
+  },
+  "storage": {
+    "data_directory": "data_storage"
+  }
+}
+```
+
+##### 8.1.3. 設定ファイルの生成・更新フロー
+
+1. **UI での設定変更:**
+
+   - ユーザーが UI（設定画面）で設定を変更
+   - `config.yml` に保存（一時ファイル `config.yml.tmp` に書き込み後、リネーム）
+
+2. **collector_config.json の生成:**
+
+   - `config.yml` の保存完了後、`collector_config.json` を生成
+   - 一時ファイル `collector_config.json.tmp` に書き込み後、リネーム（アトミック操作）
+
+3. **コレクターの設定読み込み:**
+   - コレクターは起動時および定期的に（30 秒ごと）`collector_config.json` をチェック
+   - ファイルの更新時刻が前回読み込み時より新しい場合、設定を再読み込み
+
+#### 8.2. 設定 UI（バックエンド要件）
+
+Streamlit の「設定」画面用に、以下のバックエンドロジックを提供する。
+
+- **SNMP カスタム OID 登録:** ユーザーが GUI（`st.data_editor`等）で入力した「メトリクス名」「OID」「計算方法（Gauge/Counter）」を `config.yml` に書き込む機能。
+- **vSphere インベントリ更新:** vCenter に接続し、インベントリ階層（クラスタ、ホスト、VM）を取得・キャッシュする機能。
+- **vSphere 対象選択:**
+  - 更新したインベントリを基に、UI の分析カテゴリ（クラスタ/ESXi/VM）に応じた選択リストを生成するロジック。
+  - 「VM 単位」分析では、「直近の所属 ESXi ホスト」をインベントリから参照し、VM 名の横に併記するデータを提供するロジック。
+  - **VM メトリクス制御:** VM の Memory/Disk/Network メトリクスを GUI 上で**デフォルト無効**とし、個別に有効化できる機能を提供する。
+  - ユーザーが選択した監視対象の ID を `config.yml` に保存する機能。
+- **UI 警告表示:**
+  - VM 単位のデータ取得設定画面（またはダッシュボード）において、「**VM の Memory, Disk, Network メトリクスは、vCenter への負荷およびデータ処理遅延の原因となるため、ボトルネックが疑われる VM に限り対象を絞って有効化してください。**」という警告を表示するためのフラグ/機能を提供する。
+
+#### 8.3. リテンションポリシー
+
+`config.yml` で指定された**ストレージ容量の上限**（GB）に基づき、超過分を古い日付（`date=...`）のパーティションディレクトリから削除するバックエンドロジックを実装する。
+
+- **実行タイミング:** **毎日 1 回**、日付ごとのフォルダ（`date=YYYY-MM-DD`）が作成されたタイミングで実行する。具体的には、コレクターが新しい日付のパーティションディレクトリに初めてデータを書き込む際に、リテンションポリシーのチェックを実行する。
+- **実装方法:** データ書き込み処理の前に、現在のストレージ使用量を計算し、上限を超過している場合は、最も古い日付のパーティションディレクトリから順に削除する。削除後も上限を超過している場合は、次に古い日付のディレクトリを削除する処理を繰り返し、上限を下回るまで継続する。
+- **設計理由:** ディスク容量の枯渇を防ぐため。日付フォルダ作成時に実行することで、データ収集のタイミングと同期し、定期的なメンテナンスを自動化する。
+
+#### 8.4. 認証情報管理（セキュリティ）
+
+SNMP 認証情報（コミュニティ文字列、SNMPv3 のユーザー名・パスワード）および vCenter 認証情報（ユーザー名・パスワード）は、**Windows Credential Manager** を使用して安全に管理する。
+
+- **ライブラリ:** `keyring` (v24.0.0 以上)
+  - **設計理由:** `keyring` ライブラリは、Windows では Windows Credential Manager と自動的に連携し、認証情報を OS ネイティブのセキュアストレージに保存する。これにより、平文での設定ファイル保存を避け、セキュリティを向上させる。
+- **実装方法:**
+  - **認証情報の保存:** UI（設定画面）でユーザーが認証情報を入力した際、`keyring.set_password(service_id, username, password)` を使用して Windows Credential Manager に保存する。
+  - **認証情報の取得:** コレクタープロセスは、`keyring.get_password(service_id, username)` を使用して認証情報を取得する。
+  - **サービス ID の命名規則:** `service_id` は、`"InfraAnalysisTool_SNMP"` や `"InfraAnalysisTool_vCenter"` のように、ツール名と用途を組み合わせた識別子を使用する。
+- **設定ファイルとの連携:** `config.yml` には認証情報自体は保存せず、認証情報の参照キー（ユーザー名やホスト名）のみを保存する。実際の認証情報は Windows Credential Manager から動的に取得する。
+- **設計理由:** 認証情報を平文で設定ファイルに保存すると、ファイルアクセス権限の設定ミスやファイルの誤送信により情報漏洩のリスクが生じる。Windows Credential Manager を使用することで、OS レベルのセキュリティ機能を活用し、認証情報の保護を強化する。
+
+#### 8.5. ログ管理
+
+##### 8.5.1. ログファイルの配置
+
+- **ログディレクトリ:** `logs/`（ツールのルートディレクトリ配下）
+- **ログファイル一覧:**
+  - `snmp_collector.log`: SNMP コレクターのログ
+  - `vsphere_collector.log`: vSphere コレクターのログ
+  - `ui.log`: Streamlit UI のログ
+
+##### 8.5.2. ログレベル
+
+- **DEBUG:** 詳細なデバッグ情報（開発時のみ使用）
+- **INFO:** 通常の動作情報（収集開始、書き込み完了等）
+- **WARNING:** 警告（タイムアウト、リトライ、設定読み込み失敗等）
+- **ERROR:** エラー（致命的なエラー、例外発生等）
+
+##### 8.5.3. ログフォーマット
+
+- **フォーマット:** `[YYYY-MM-DD HH:MM:SS] [LEVEL] [機能名] メッセージ`
+- **例:**
+  - `[2025-11-15 17:00:00] [INFO] [SNMP Collector] 収集開始: 100 ホスト`
+  - `[2025-11-15 17:00:05] [WARNING] [SNMP Collector] タイムアウト: switch-01.local`
+  - `[2025-11-15 17:30:00] [INFO] [SNMP Collector] 書き込み完了: snmp_metrics_1700.parquet`
+
+##### 8.5.4. ログローテーション
+
+- **ローテーション条件:** ファイルサイズが **10 MB** に達したらローテーション
+- **ローテーション方法:**
+  - 現在のログファイルを `{ログファイル名}.1` にリネーム
+  - 既存の `{ログファイル名}.1` は `{ログファイル名}.2` にリネーム（以下同様）
+- **保持ファイル数:** 最大 **5 ファイル**（`{ログファイル名}`, `.1`, `.2`, `.3`, `.4`）
+- **実装:** Python の `logging.handlers.RotatingFileHandler` を使用
+
+##### 8.5.5. ログの用途
+
+- **トラブルシューティング:** エラー発生時の原因調査
+- **パフォーマンス監視:** 収集遅延、書き込み遅延の検知
+- **運用監視:** コレクターの稼働状況の確認
+
+#### 8.6. リセット機能（OS 設定の復元）
+
+本ツールで変更した OS の設定を元に戻すリセット機能を実装する。
+
+- **設計理由:** ツールのアンインストール時や、設定を完全にクリアしたい場合に、OS に残った設定を手動で削除する手間を省き、確実にクリーンアップするため。
+
+##### 8.6.1. リセット対象
+
+以下の OS 設定をリセットする。
+
+1.  **Windows サービス（SNMP コレクター）:**
+
+    - サービス名: `InfraAnalysisTool_SNMPCollector`
+    - 実装方法: `pywin32` の `win32serviceutil.RemoveService()` を使用してサービスを削除
+    - 実行条件: サービスが停止している必要がある（実行中の場合は先に停止）
+
+2.  **Windows タスクスケジューラ（vSphere コレクター）:**
+
+    - タスク名: `InfraAnalysisTool_vSphereCollector`
+    - 実装方法: `subprocess` モジュールを使用して `schtasks.exe /Delete /TN "InfraAnalysisTool_vSphereCollector" /F` を実行
+    - `/F` オプションで確認なしで削除
+
+3.  **Windows Credential Manager（認証情報）:**
+
+    - サービス ID: `InfraAnalysisTool_SNMP`, `InfraAnalysisTool_vCenter`
+    - 実装方法: `keyring.delete_password(service_id, username)` を使用して認証情報を削除
+    - `config.yml` に保存されている認証情報の参照キーを読み取り、対応する認証情報をすべて削除
+
+##### 8.6.2. 実装方法
+
+- **UI での実行:**
+
+  - Streamlit の「設定」画面に「リセット」ボタンを配置
+  - リセット実行前に確認ダイアログを表示し、ユーザーの承認を得る
+  - リセット対象をチェックボックスで選択可能にする
+
+- **リセット処理の順序:**
+
+  1. Windows サービスを停止・削除
+  2. Windows タスクスケジューラのタスクを削除
+  3. Windows Credential Manager から認証情報を削除
+
+- **エラーハンドリング:**
+  - 各リセット処理でエラーが発生した場合、ログに記録し、処理を継続する
+  - リセット完了後、成功/失敗のサマリを表示する
+
+##### 8.6.3. データストレージの扱い
+
+- **データストレージ（`data_storage/`）は削除しない:**
+  - データストレージはユーザーが指定した場所に保存されており、ツールの設定とは独立している
+  - データの削除は、リテンションポリシーまたはユーザーが手動で行う
+
+---
+
+### 9. テスト戦略
+
+#### 9.1. 単体テスト
+
+各モジュールや関数が期待通りに動作することを確認する。
+
+- **テストフレームワーク:** `pytest` を採用する。
+  - **設計理由:** Python の標準的なテストフレームワークであり、豊富な機能（フィクスチャ、パラメータ化テスト、カバレッジ測定）を提供するため。
+- **テスト対象:**
+  - **データ処理・変換ロジック:** SNMP カウンターの差分計算、ロールオーバー検知、vSphere メトリクスの単位変換（`costop` の%換算等）
+  - **設定ファイル管理:** `config.yml` の読み書き、`collector_config.json` の生成ロジック
+  - **認証情報管理:** `keyring` を使用した認証情報の保存・取得
+  - **リテンションポリシー:** ストレージ容量計算、古いパーティションディレクトリの削除ロジック
+- **テスト環境:** モックオブジェクトを使用し、外部依存（SNMP 機器、vCenter、ファイルシステム）を排除した環境で実行する。
+
+#### 9.2. 統合テスト
+
+複数のモジュールやコンポーネントが連携して正しく動作することを確認する。
+
+- **テスト対象:**
+  - **コレクター - ストレージ連携:** SNMP/vSphere コレクターが収集したデータが、正しいパーティション構造で Parquet ファイルとして保存されることを確認
+  - **UI - DuckDB 連携:** Streamlit UI からのクエリが DuckDB で正しく実行され、期待通りのデータが返されることを確認
+  - **設定 UI - コレクター連携:** UI で設定変更した内容が `collector_config.json` に正しく反映され、コレクターが新しい設定を読み込むことを確認
+  - **Windows サービス連携:** SNMP コレクターが Windows サービスとして正しく登録・起動・停止されることを確認
+- **テスト環境:** 実際の SNMP 機器や vCenter への接続は不要。テスト用のモックサーバー（SNMP シミュレータ、vSphere API モック）を使用する。
+
+#### 9.3. パフォーマンステスト
+
+システムが想定される負荷下で適切に動作することを確認する。
+
+- **テスト対象:**
+  - **データ収集性能:** 100 ホスト超への SNMP 収集が 20 秒以内に完了することを確認
+  - **データ書き込み性能:** 30 分間のバッファリングデータ（想定最大データ量）を Parquet ファイルとして書き込む処理が、次回の書き込み周期（30 分）までに完了することを確認
+  - **クエリ性能:** DuckDB による分析クエリ（期間指定、複数ホスト集計、ベースライン分析等）の応答時間を測定し、実用的な範囲（例: 10 秒以内）に収まることを確認
+  - **メモリ使用量:** 30 分間のバッファリング時のメモリ使用量を測定し、想定環境でのメモリ制約内に収まることを確認
+- **テストデータ:** 実際の運用環境に近い規模のテストデータ（ホスト数、メトリクス数、データ保持期間）を生成し、パフォーマンステストに使用する。
+- **測定ツール:** Python の `cProfile` や `memory_profiler` を使用して、ボトルネックやメモリリークを特定する。
