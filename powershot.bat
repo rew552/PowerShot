@@ -1,3 +1,2 @@
 @echo off
-
-start cmd /c powershell.exe -NoProfile -ExecutionPolicy Bypass "%~dp0\powershot.ps1" <nul
+powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File "%~dp0src\PowerShot.ps1"
