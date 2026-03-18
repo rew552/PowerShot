@@ -17,6 +17,9 @@ using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 
 namespace PowerShot
 {
@@ -84,12 +87,17 @@ namespace PowerShot
         public string LastDirectory { get; set; }
         public string LastPrefix { get; set; }
         public int LastSequenceDigits { get; set; }
+        public bool IsSystemInfoVisible { get; set; }
+
+        public string LastFormat { get; set; }
 
         public SessionState()
         {
             LastDirectory = "";
             LastPrefix = "";
             LastSequenceDigits = 3;
+            IsSystemInfoVisible = false;
+            LastFormat = "jpg";
         }
     }
 
@@ -324,6 +332,7 @@ namespace PowerShot
         private TextBlock _fileNamePreview;
         private Button _saveButton;
         private ComboBox _digitsComboBox;
+        private CheckBox _systemInfoToggle;
         private Border _newFolderPanel;
         private TextBox _newFolderNameTextBox;
         private Button _createFolderButton;
@@ -375,11 +384,12 @@ namespace PowerShot
             _pathDisplay = (TextBlock)_window.FindName("PathDisplay");
             _prefixTextBox = (TextBox)_window.FindName("PrefixTextBox");
             _sequenceTextBox = (TextBox)_window.FindName("SequenceTextBox");
+            _saveButton = (Button)_window.FindName("SaveButton");
+            _digitsComboBox = (ComboBox)_window.FindName("DigitsComboBox");
             _formatComboBox = (ComboBox)_window.FindName("FormatComboBox");
             _fileNamePreview = (TextBlock)_window.FindName("FileNamePreview");
-            _saveButton = (Button)_window.FindName("SaveButton");
+            _systemInfoToggle = (CheckBox)_window.FindName("SystemInfoToggle");
             _newFolderPanel = (Border)_window.FindName("NewFolderPanel");
-            _digitsComboBox = (ComboBox)_window.FindName("DigitsComboBox");
             _newFolderNameTextBox = (TextBox)_window.FindName("NewFolderNameTextBox");
             _createFolderButton = (Button)_window.FindName("CreateFolderButton");
             _cancelFolderButton = (Button)_window.FindName("CancelFolderButton");
@@ -427,6 +437,11 @@ namespace PowerShot
             
             // Register pasting handler for sequence
             DataObject.AddPastingHandler(_sequenceTextBox, SequenceTextBox_Pasting);
+
+            if (_systemInfoToggle != null)
+            {
+                _systemInfoToggle.Click += SystemInfoToggle_Click;
+            }
         }
 
         private void Initialize()
@@ -441,20 +456,39 @@ namespace PowerShot
             _suppressSequenceUpdate = true;
             _prefixTextBox.Text = _session.LastPrefix ?? "";
             
-            if (_digitsComboBox != null && _session.LastSequenceDigits >= 1 && _session.LastSequenceDigits <= 6)
+            if (_digitsComboBox != null)
             {
-                if (_digitsComboBox != null) _digitsComboBox.SelectedIndex = _session.LastSequenceDigits - 1;
+                if (_session.LastSequenceDigits == -1)
+                {
+                    _digitsComboBox.SelectedIndex = 6;
+                }
+                else if (_session.LastSequenceDigits >= 1 && _session.LastSequenceDigits <= 6)
+                {
+                    _digitsComboBox.SelectedIndex = _session.LastSequenceDigits - 1;
+                }
 
                 // Ensure interlock is correct after loading session data
                 UpdateInputInterlock();
-
                 UpdateSequence();
+            }
+            // Restore system info visibility (embedding state)
+            if (_systemInfoToggle != null)
+            {
+                _systemInfoToggle.IsChecked = _session.IsSystemInfoVisible;
+            }
+
+            if (_formatComboBox != null)
+            {
+                _formatComboBox.SelectedIndex = (_session.LastFormat == "png") ? 1 : 0;
             }
             
             _suppressSequenceUpdate = false;
 
             // Load directory and compute sequence
             NavigateToDirectory(_currentDirectory);
+
+            // Set Initial Focus to Prefix field
+            _prefixTextBox.Focus();
         }
 
         // --- Navigation ---
@@ -476,18 +510,22 @@ namespace PowerShot
             _session.LastDirectory = path;
 
             // Update path display (relative to root)
-            try
+            string root = NormalizePath(_rootBoundary).TrimEnd('\\');
+            string current = NormalizePath(_currentDirectory).TrimEnd('\\');
+
+            if (current.Equals(root, StringComparison.OrdinalIgnoreCase))
             {
-                Uri rootUri = new Uri(_rootBoundary + Path.DirectorySeparatorChar);
-                Uri currentUri = new Uri(_currentDirectory + Path.DirectorySeparatorChar);
-                string relative = Uri.UnescapeDataString(rootUri.MakeRelativeUri(currentUri).ToString())
-                                      .Replace('/', Path.DirectorySeparatorChar)
-                                      .TrimEnd(Path.DirectorySeparatorChar);
-                _pathDisplay.Text = string.IsNullOrEmpty(relative) ? "Screenshots" : "Screenshots\\" + relative;
+                _pathDisplay.Text = @".\";
             }
-            catch
+            else if (current.StartsWith(root, StringComparison.OrdinalIgnoreCase))
             {
-                _pathDisplay.Text = "Screenshots";
+                string relative = current.Substring(root.Length).TrimStart('\\', '/');
+                _pathDisplay.Text = string.IsNullOrEmpty(relative) ? @".\" : @".\" + relative;
+            }
+            else
+            {
+                // Fallback if somehow outside root
+                _pathDisplay.Text = Path.GetFileName(current);
             }
 
             RefreshExplorer();
@@ -501,9 +539,8 @@ namespace PowerShot
 
             try
             {
-                // Folders first (alphabetical)
-                var dirs = Directory.GetDirectories(_currentDirectory);
-                Array.Sort(dirs, StringComparer.OrdinalIgnoreCase);
+                // Folders sorted by name ascending
+                var dirs = Directory.GetDirectories(_currentDirectory).OrderBy(d => d, StringComparer.OrdinalIgnoreCase).ToArray();
                 foreach (var dir in dirs)
                 {
                     items.Add(new ExplorerItem
@@ -516,9 +553,9 @@ namespace PowerShot
                     });
                 }
 
-                // Files sorted by modification date descending
+                // Files sorted by name ascending
                 var fileInfos = new DirectoryInfo(_currentDirectory).GetFiles();
-                var sortedFiles = fileInfos.OrderByDescending(f => f.LastWriteTime).ToArray();
+                var sortedFiles = fileInfos.OrderBy(f => f.Name).ToArray();
                 foreach (var fi in sortedFiles)
                 {
                     items.Add(new ExplorerItem
@@ -530,6 +567,16 @@ namespace PowerShot
                         Icon = IconHelper.GetIcon(fi.FullName, false)
                     });
                 }
+
+                _explorerListView.ItemsSource = items;
+
+                // Auto-resize first column to content
+                GridView gv = _explorerListView.View as GridView;
+                if (gv != null && gv.Columns.Count > 0)
+                {
+                    gv.Columns[0].Width = 0;
+                    gv.Columns[0].Width = Double.NaN;
+                }
             }
             catch (Exception ex)
             {
@@ -538,7 +585,6 @@ namespace PowerShot
                     "PowerShot", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
 
-            _explorerListView.ItemsSource = items;
         }
 
         // --- Sequence ---
@@ -546,17 +592,30 @@ namespace PowerShot
         private void UpdateSequence()
         {
             int digits = GetSelectedDigits();
-            if (_sequenceTextBox != null) _sequenceTextBox.MaxLength = digits;
-            
-            int seq = SequenceManager.GetNextSequence(
-                _currentDirectory, _prefixTextBox.Text, "");
-            _sequenceTextBox.Text = seq.ToString("D" + digits);
+            if (_sequenceTextBox != null)
+            {
+                if (digits == -1) // "日時" case
+                {
+                    _sequenceTextBox.MaxLength = 20;
+                    _sequenceTextBox.Text = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+                }
+                else
+                {
+                    int maxLen = digits > 0 ? digits : 4;
+                    _sequenceTextBox.MaxLength = maxLen;
+                    int seq = SequenceManager.GetNextSequence(
+                        _currentDirectory, _prefixTextBox.Text, "");
+                    _sequenceTextBox.Text = seq.ToString("D" + maxLen);
+                }
+            }
         }
 
         private int GetSelectedDigits()
         {
             if (_digitsComboBox != null && _digitsComboBox.SelectedIndex >= 0)
             {
+                // Index 6 is "日時" (yyyyMMdd-HHmmss)
+                if (_digitsComboBox.SelectedIndex == 6) return -1;
                 return _digitsComboBox.SelectedIndex + 1;
             }
             return 3;
@@ -566,6 +625,8 @@ namespace PowerShot
 
         private void UpdateFileNamePreview()
         {
+            if (_fileNamePreview == null || _prefixTextBox == null || _sequenceTextBox == null) return;
+
             string format = GetSelectedFormat();
             _fileNamePreview.Text = FileManager.GenerateFileName(
                 _prefixTextBox.Text, "", _sequenceTextBox.Text, format);
@@ -642,14 +703,30 @@ namespace PowerShot
         private void ParseAndPopulateFromFileName(string fileName)
         {
             string nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
-            // Match pattern: prefix_NNN
-            var matchSimple = Regex.Match(nameWithoutExt, @"^(.+?)_(\d{3,})$");
+            // Patterns for timestamp: yyyyMMdd-HHmmss
+            var matchTimestamp = Regex.Match(nameWithoutExt, @"^(.+?)_(\d{8}-\d{6})$");
+            var matchTimestampOnly = Regex.Match(nameWithoutExt, @"^(\d{8}-\d{6})$");
+            // Pattern for sequence: prefix_NNN
+            var matchSimple = Regex.Match(nameWithoutExt, @"^(.+?)_(\d+)$");
 
             _suppressSequenceUpdate = true;
 
-            if (matchSimple.Success)
+            if (matchTimestamp.Success)
+            {
+                _prefixTextBox.Text = matchTimestamp.Groups[1].Value;
+                _digitsComboBox.SelectedIndex = 6; // 日時
+            }
+            else if (matchTimestampOnly.Success)
+            {
+                _prefixTextBox.Text = "";
+                _digitsComboBox.SelectedIndex = 6; // 日時
+            }
+            else if (matchSimple.Success)
             {
                 _prefixTextBox.Text = matchSimple.Groups[1].Value;
+                int len = matchSimple.Groups[2].Length;
+                if (len >= 1 && len <= 6)
+                    _digitsComboBox.SelectedIndex = len - 1;
             }
             else
             {
@@ -677,8 +754,10 @@ namespace PowerShot
             bool hasPrefix = !string.IsNullOrWhiteSpace(_prefixTextBox.Text);
             if (_sequenceTextBox != null) _sequenceTextBox.IsEnabled = hasPrefix;
             if (_digitsComboBox != null) _digitsComboBox.IsEnabled = hasPrefix;
-            if (_formatComboBox != null) _formatComboBox.IsEnabled = hasPrefix;
-            if (_saveButton != null) _saveButton.IsEnabled = hasPrefix;
+            // Format can be changed even without prefix (e.g. for SS_yyyyMMdd-HHmmss format)
+            if (_formatComboBox != null) _formatComboBox.IsEnabled = true;
+            // Relaxed: Save button is allowed even if prefix is empty
+            if (_saveButton != null) _saveButton.IsEnabled = true;
         }
 
         private void SequenceTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -718,7 +797,8 @@ namespace PowerShot
             // Limit input length based on selected digits
             if (_sequenceTextBox != null)
             {
-                _sequenceTextBox.MaxLength = GetSelectedDigits();
+                int digits = GetSelectedDigits();
+                _sequenceTextBox.MaxLength = (digits > 0) ? digits : 20;
             }
         }
 
@@ -745,6 +825,12 @@ namespace PowerShot
                 return;
             }
 
+            // Embed System Info if enabled
+            if (_session.IsSystemInfoVisible)
+            {
+                EmbedSystemInfo(_capturedBitmap);
+            }
+ 
             string format = GetSelectedFormat();
             string fileName = FileManager.GenerateFileName(
                 _prefixTextBox.Text, "", _sequenceTextBox.Text, format);
@@ -763,9 +849,74 @@ namespace PowerShot
             _session.LastPrefix = _prefixTextBox.Text;
             _session.LastDirectory = _currentDirectory;
             _session.LastSequenceDigits = GetSelectedDigits();
+            _session.LastFormat = GetSelectedFormat();
 
             // Close the window to wait for the next screenshot
             _window.Close();
+        }
+
+        // --- System Info ---
+
+        private void SystemInfoToggle_Click(object sender, RoutedEventArgs e)
+        {
+            _session.IsSystemInfoVisible = _systemInfoToggle.IsChecked ?? false;
+        }
+
+        private void EmbedSystemInfo(Bitmap bmp)
+        {
+            string info = GetSystemInfoString();
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+                using (Font font = new Font("Segoe UI", 12, System.Drawing.FontStyle.Regular))
+                {
+                    SizeF textSize = g.MeasureString(info, font);
+                    float padding = 8;
+                    float rectW = textSize.Width + padding * 2;
+                    float rectH = textSize.Height + padding * 2;
+                    float x = 10; // Left aligned to avoid covering taskbar clock on right
+                    float y = bmp.Height - rectH - 10;
+
+                    // Ensure coordinates are within bounds
+                    if (x < 0) x = 0;
+                    if (y < 0) y = 0;
+
+                    // Draw semi-transparent background
+                    using (System.Drawing.SolidBrush brush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(160, 0, 0, 0)))
+                    {
+                        g.FillRectangle(brush, x, y, rectW, rectH);
+                    }
+
+                    // Draw text
+                    using (System.Drawing.SolidBrush textBrush = new System.Drawing.SolidBrush(System.Drawing.Color.White))
+                    {
+                        g.DrawString(info, font, textBrush, x + padding, y + padding);
+                    }
+                }
+            }
+        }
+
+        private string GetSystemInfoString()
+        {
+            try
+            {
+                string host = Dns.GetHostName();
+                string domain = IPGlobalProperties.GetIPGlobalProperties().DomainName;
+                string fqdn = string.IsNullOrEmpty(domain) ? host : host + "." + domain;
+                string user = Environment.UserDomainName + "\\" + Environment.UserName;
+                
+                var ips = Dns.GetHostAddresses(host)
+                    .Where(ip => ip.AddressFamily == AddressFamily.InterNetwork)
+                    .Select(ip => ip.ToString())
+                    .ToList();
+                
+                string ipStr = ips.Count > 0 ? string.Join(", ", ips.ToArray()) : "N/A";
+
+                return string.Format("Host: {0} | User: {1} | IP: {2}", fqdn, user, ipStr);
+            }
+            catch { return "System Info Error"; }
         }
 
         // --- Folder Creation and Deletion ---
@@ -878,6 +1029,12 @@ namespace PowerShot
             if (e.Key == Key.Escape)
             {
                 _window.Close();
+            }
+            else if (e.Key == Key.Delete)
+            {
+                // Trigger deletion if list or window has focus and item is selected
+                DeleteButton_Click(null, null);
+                e.Handled = true;
             }
             else if (e.Key == Key.S && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
             {

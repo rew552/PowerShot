@@ -3,7 +3,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title=">_ PowerShot 2.0"
     MinWidth="800" MinHeight="600"
-    Width="1100" Height="750"
+    Width="1100" Height="650"
     WindowStartupLocation="CenterScreen"
     Background="Transparent"
     AllowsTransparency="True"
@@ -56,6 +56,11 @@
                     </Style>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.4"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Label style -->
@@ -67,8 +72,89 @@
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
 
-        <!-- Button style -->
-        <Style x:Key="ActionButton" TargetType="Button">
+        <!-- Custom ScrollBar style -->
+        <Style TargetType="{x:Type ScrollBar}">
+            <Setter Property="Stylus.IsPressAndHoldEnabled" Value="false"/>
+            <Setter Property="Stylus.IsFlicksEnabled" Value="false"/>
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="MinWidth" Value="8"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollBar}">
+                        <Grid x:Name="Bg" SnapsToDevicePixels="true" Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="true" IsEnabled="{TemplateBinding IsEnabled}">
+                                <Track.Thumb>
+                                    <Thumb x:Name="Thumb">
+                                        <Thumb.Style>
+                                            <Style TargetType="{x:Type Thumb}">
+                                                <Setter Property="OverridesDefaultStyle" Value="true"/>
+                                                <Setter Property="IsTabStop" Value="false"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="{x:Type Thumb}">
+                                                            <Border x:Name="rectangle" Background="#3E3E42" CornerRadius="4" 
+                                                                    Width="6" Height="{TemplateBinding Height}" 
+                                                                    SnapsToDevicePixels="True" Margin="1,0"/>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="true">
+                                                                    <Setter TargetName="rectangle" Property="Background" Value="#999999" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsDragging" Value="true">
+                                                                    <Setter TargetName="rectangle" Property="Background" Value="#CCCCCC" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </Thumb.Style>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Orientation" Value="Horizontal">
+                                <Setter Property="Width" Value="Auto"/>
+                                <Setter Property="MinWidth" Value="0"/>
+                                <Setter Property="Height" Value="8"/>
+                                <Setter Property="MinHeight" Value="8"/>
+                                <Setter TargetName="Bg" Property="Height" Value="8"/>
+                                <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+                                <Setter TargetName="Thumb" Property="Style">
+                                    <Setter.Value>
+                                        <Style TargetType="{x:Type Thumb}">
+                                            <Setter Property="OverridesDefaultStyle" Value="true"/>
+                                            <Setter Property="IsTabStop" Value="false"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="{x:Type Thumb}">
+                                                        <Border x:Name="rectangle" Background="#3E3E42" CornerRadius="4" 
+                                                                Height="6" Width="{TemplateBinding Width}" 
+                                                                SnapsToDevicePixels="True" Margin="0,1"/>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="true">
+                                                                <Setter TargetName="rectangle" Property="Background" Value="#999999" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsDragging" Value="true">
+                                                                <Setter TargetName="rectangle" Property="Background" Value="#CCCCCC" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Primary Button style -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
             <Setter Property="Background" Value="#007ACC"/>
             <Setter Property="Foreground" Value="#FFFFFF"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -152,7 +238,8 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="2">
+                                CornerRadius="2"
+                                Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -263,52 +350,65 @@
                 <!-- ===== RIGHT COLUMN: Explorer + Form ===== -->
                 <Grid Grid.Column="1">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>   <!-- Nav bar -->
+                        <RowDefinition Height="Auto"/>   <!-- Row 1: File Explorer + Buttons -->
+                        <RowDefinition Height="Auto"/>   <!-- Row 2: Back + Address bar -->
                         <RowDefinition Height="Auto"/>   <!-- New Folder Panel -->
                         <RowDefinition Height="*"/>      <!-- Explorer ListView -->
                         <RowDefinition Height="Auto"/>   <!-- Input Form -->
                     </Grid.RowDefinitions>
         
-                    <!-- Navigation Bar -->
-                    <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                    <!-- Row 1: Title and Action Buttons -->
+                    <Grid Grid.Row="0" Margin="0,0,0,4">
+                        <TextBlock Text="File Explorer" 
+                                   Foreground="#888888" 
+                                   FontFamily="Yu Gothic UI, Segoe UI"
+                                   FontSize="13" 
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Left"
+                                   VerticalAlignment="Center"/>
+                        
+                        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                            <Button x:Name="NewFolderButton" Style="{StaticResource SecondaryButton}" Content="📁作成" ToolTip="新しいフォルダを作成" Padding="22,4" Margin="0,0,8,0"/>
+                            <Button x:Name="DeleteButton" Style="{StaticResource SecondaryButton}" Content="🗑️ 削除" Foreground="#F44747" ToolTip="選択した項目を削除" Padding="22,4" IsEnabled="False"/>
+                        </StackPanel>
+                    </Grid>
+        
+                    <!-- Row 2: Navigation Bar -->
+                    <DockPanel Grid.Row="1" Margin="0,0,0,8">
                         <Button x:Name="BackButton"
                                 Style="{StaticResource NavButton}"
                                 Content="&#xE72B;"
                                 ToolTip="親フォルダへ戻る"
                                 DockPanel.Dock="Left"
-                                Margin="0,0,6,0"/>
+                                Margin="0,0,8,0"/>
                         
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0">
-                            <Button x:Name="NewFolderButton" Style="{StaticResource SecondaryButton}" Content="📁作成" ToolTip="新しいフォルダを作成" Padding="16,4" Margin="0,0,8,0"/>
-                            <Button x:Name="DeleteButton" Style="{StaticResource SecondaryButton}" Content="🗑️ 削除" Foreground="#F44747" ToolTip="選択した項目を削除" Padding="16,4" IsEnabled="False"/>
-                        </StackPanel>
-        
                         <Border Background="#1E1E1E"
                                 BorderBrush="#3F3F46"
                                 BorderThickness="1"
                                 CornerRadius="2"
-                                Padding="6,3">
+                                Padding="8,4">
                             <TextBlock x:Name="PathDisplay"
                                        Foreground="#AAAAAA"
                                        FontFamily="Yu Gothic UI, Segoe UI"
-                                       FontSize="11"
-                                       TextTrimming="CharacterEllipsis"
+                                       FontSize="12"
                                        VerticalAlignment="Center"
-                                       Text="Screenshots"/>
+                                       Text=".\"/>
                         </Border>
                     </DockPanel>
         
                     <!-- New Folder Inline Dialog -->
-                    <Border x:Name="NewFolderPanel" Grid.Row="1" Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" Padding="8" Margin="0,0,0,6" Visibility="Collapsed">
+                    <Border x:Name="NewFolderPanel" Grid.Row="2" Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" Padding="8" Margin="0,0,0,6" Visibility="Collapsed">
                         <DockPanel>
-                            <Button x:Name="CreateFolderButton" Content="作成 (Enter)" DockPanel.Dock="Right" Padding="12,4" Margin="6,0,0,0" Background="#007ACC" Foreground="White" BorderThickness="0" Cursor="Hand" />
-                            <Button x:Name="CancelFolderButton" Content="キャンセル (Esc)" DockPanel.Dock="Right" Padding="12,4" Background="Transparent" Foreground="#AAAAAA" BorderThickness="0" Cursor="Hand" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0">
+                                <Button x:Name="CreateFolderButton" Style="{StaticResource PrimaryButton}" Content="作成" Padding="20,6" Margin="0,0,8,0"/>
+                                <Button x:Name="CancelFolderButton" Style="{StaticResource SecondaryButton}" Content="キャンセル" Padding="20,6" IsCancel="True"/>
+                            </StackPanel>
                             <TextBox x:Name="NewFolderNameTextBox" Style="{StaticResource DarkTextBox}" VerticalAlignment="Center" />
                         </DockPanel>
                     </Border>
         
                     <ListView x:Name="ExplorerListView"
-                              Grid.Row="2"
+                              Grid.Row="3"
                               Background="#1E1E1E"
                               BorderBrush="{StaticResource BorderBrush}"
                               BorderThickness="1"
@@ -316,6 +416,8 @@
                               FontFamily="Yu Gothic UI, Segoe UI"
                               FontSize="13"
                               Margin="0,0,0,6"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              VirtualizingPanel.IsVirtualizing="False"
                               SelectionMode="Extended">
                         <ListView.ItemContainerStyle>
                             <Style TargetType="ListViewItem">
@@ -344,11 +446,11 @@
                         </ListView.ItemContainerStyle>
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn Header="名前" Width="180">
+                                <GridViewColumn Header="名前" Width="350">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" Margin="4,2">
-                                                <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,8,0"/>
+                                            <StackPanel Orientation="Horizontal" Margin="6,4">
+                                                <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                                 <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </DataTemplate>
@@ -366,13 +468,20 @@
                     </ListView>
         
                     <!-- Input Form -->
-                    <Border Grid.Row="3"
+                    <Border Grid.Row="4"
                             Background="#2D2D30"
                             BorderBrush="#3F3F46"
                             BorderThickness="1"
                             CornerRadius="4"
-                            Padding="12">
+                            Padding="15">
                         <StackPanel>
+                            <!-- Image Embedding Toggle -->
+                            <CheckBox x:Name="SystemInfoToggle" 
+                                      Content="💻 システム情報を画像に埋め込む" 
+                                      Foreground="#AAAAAA" 
+                                      FontSize="11"
+                                      Margin="0,0,0,10" 
+                                      Cursor="Hand"/>
                             <!-- Prefix -->
                             <Grid Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
@@ -396,13 +505,14 @@
                                 <TextBlock Grid.Column="0" Text="連番:" Style="{StaticResource FormLabel}"/>
                                 <TextBox x:Name="SequenceTextBox" Grid.Column="1" Style="{StaticResource DarkTextBox}"/>
                                 
-                                <ComboBox x:Name="DigitsComboBox" Grid.Column="3" Style="{StaticResource DarkComboBox}" Width="65" SelectedIndex="2">
+                                <ComboBox x:Name="DigitsComboBox" Grid.Column="3" Style="{StaticResource DarkComboBox}" Width="65" SelectedIndex="3">
                                     <ComboBoxItem Content="1桁" Foreground="Black" Background="White"/>
                                     <ComboBoxItem Content="2桁" Foreground="Black" Background="White"/>
-                                    <ComboBoxItem Content="3桁" Foreground="Black" Background="White" IsSelected="True"/>
-                                    <ComboBoxItem Content="4桁" Foreground="Black" Background="White"/>
+                                    <ComboBoxItem Content="3桁" Foreground="Black" Background="White"/>
+                                    <ComboBoxItem Content="4桁" Foreground="Black" Background="White" IsSelected="True"/>
                                     <ComboBoxItem Content="5桁" Foreground="Black" Background="White"/>
                                     <ComboBoxItem Content="6桁" Foreground="Black" Background="White"/>
+                                    <ComboBoxItem Content="日時" Foreground="Black" Background="White"/>
                                 </ComboBox>
                                 
                                 <ComboBox x:Name="FormatComboBox" Grid.Column="5" Style="{StaticResource DarkComboBox}">
@@ -425,15 +535,20 @@
                             </Border>
         
                             <!-- Save Button -->
-                            <Button x:Name="SaveButton"
-                                    Style="{StaticResource ActionButton}"
-                                    Content="💾 保存"
-                                    Padding="16,10"
+                            <Button x:Name="SaveButton" 
+                                    Style="{StaticResource PrimaryButton}" 
+                                    Content="💾 保存 (Enter)" 
+                                    IsDefault="True"
+                                    Margin="0,0,0,10"
+                                    Padding="0,10"
+                                    FontSize="14"
+                                    FontWeight="Bold"
                                     HorizontalAlignment="Stretch"/>
-                </StackPanel>
-            </Border>
+                        </StackPanel>
+                    </Border>
+                
+            </Grid>
         </Grid>
-    </Grid>
     </Grid>
     </Border>
 </Window>
