@@ -15,18 +15,20 @@ Add-Type -AssemblyName System.Windows.Forms
 
 # --- Resolve Paths ---
 $scriptPath = Split-Path $MyInvocation.MyCommand.Path -Parent
-$csPath     = Join-Path $scriptPath "PowerShotLogic.cs"
 $saveDir    = Join-Path $scriptPath "..\Screenshots"
 
 # --- Recompile Guard: only Add-Type if not already loaded ---
 if (-not ('PowerShot.Program' -as [type])) {
-    if (-not (Test-Path $csPath)) {
-        Write-Host "ERROR: PowerShotLogic.cs not found: $csPath" -ForegroundColor Red
+    # フォルダ内のすべての .cs ファイルを取得
+    $csFiles = Get-ChildItem -Path $scriptPath -Filter "*.cs" -Recurse
+    if ($csFiles.Count -eq 0) {
+        Write-Host "ERROR: No .cs files found in: $scriptPath" -ForegroundColor Red
         Read-Host "Press Enter to exit"
         exit 1
     }
 
-    $csCode = [System.IO.File]::ReadAllText($csPath, [System.Text.Encoding]::UTF8)
+    # すべての .cs ファイルのパスを取得
+    $csPaths = $csFiles.FullName
 
     # Referenced assemblies for WPF + Drawing + Interop
     $refs = @(
@@ -42,7 +44,7 @@ if (-not ('PowerShot.Program' -as [type])) {
     )
 
     try {
-        Add-Type -TypeDefinition $csCode -ReferencedAssemblies $refs -ErrorAction Stop
+        Add-Type -Path $csPaths -ReferencedAssemblies $refs -Language CSharp -ErrorAction Stop
     }
     catch {
         Write-Host "ERROR: C# Compilation Failed:" -ForegroundColor Red
