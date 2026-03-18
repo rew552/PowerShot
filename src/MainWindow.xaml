@@ -10,7 +10,14 @@
     WindowStyle="None"
     Topmost="True">
 
+    <Window.InputBindings>
+        <KeyBinding Key="Escape" Command="{Binding CloseCommand}" />
+        <KeyBinding Key="Delete" Command="{Binding DeleteCommand}" />
+    </Window.InputBindings>
     <Window.Resources>
+        <!-- Converters -->
+        <local:StringToBoolConverter xmlns:local="clr-namespace:PowerShot.ViewModels" x:Key="StringToBoolConverter" />
+
         <!-- Shared dark theme styles -->
         <SolidColorBrush x:Key="BgPrimary" Color="#252526"/>
         <SolidColorBrush x:Key="BgSecondary" Color="#1E1E1E"/>
@@ -306,6 +313,9 @@
 
             <!-- Custom Title Bar -->
             <Grid x:Name="TitleBarGrid" Grid.Row="0" Background="Transparent">
+                <Grid.InputBindings>
+                    <MouseBinding MouseAction="LeftClick" Command="{Binding DragMoveCommand}" />
+                </Grid.InputBindings>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -319,7 +329,8 @@
 
                 <Button x:Name="CloseToolButton" Grid.Column="2" 
                         Width="45" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" 
-                        Style="{StaticResource TitleBarButtonStyle}" VerticalAlignment="Stretch"/>
+                        Style="{StaticResource TitleBarButtonStyle}" VerticalAlignment="Stretch"
+                        Command="{Binding CloseCommand}"/>
             </Grid>
 
             <!-- Main Content -->
@@ -342,6 +353,7 @@
                         Margin="0,0,8,0">
                     <Viewbox Stretch="Uniform">
                         <Image x:Name="PreviewImage"
+                               Source="{Binding PreviewImageSource}"
                                RenderOptions.BitmapScalingMode="HighQuality"
                                Stretch="Uniform"/>
                     </Viewbox>
@@ -368,8 +380,8 @@
                                    VerticalAlignment="Center"/>
                         
                         <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                            <Button x:Name="NewFolderButton" Style="{StaticResource SecondaryButton}" Content="📁作成" ToolTip="新しいフォルダを作成" Padding="22,4" Margin="0,0,8,0"/>
-                            <Button x:Name="DeleteButton" Style="{StaticResource SecondaryButton}" Content="🗑️ 削除" Foreground="#F44747" ToolTip="選択した項目を削除" Padding="22,4" IsEnabled="False"/>
+                            <Button x:Name="NewFolderButton" Style="{StaticResource SecondaryButton}" Content="📁作成" ToolTip="新しいフォルダを作成" Padding="22,4" Margin="0,0,8,0" Command="{Binding ShowNewFolderPanelCommand}"/>
+                            <Button x:Name="DeleteButton" Style="{StaticResource SecondaryButton}" Content="🗑️ 削除" Foreground="#F44747" ToolTip="選択した項目を削除" Padding="22,4" Command="{Binding DeleteCommand}"/>
                         </StackPanel>
                     </Grid>
         
@@ -380,7 +392,8 @@
                                 Content="&#xE72B;"
                                 ToolTip="親フォルダへ戻る"
                                 DockPanel.Dock="Left"
-                                Margin="0,0,8,0"/>
+                                Margin="0,0,8,0"
+                                Command="{Binding BackCommand}"/>
                         
                         <Border Background="#1E1E1E"
                                 BorderBrush="#3F3F46"
@@ -392,18 +405,23 @@
                                        FontFamily="Yu Gothic UI, Segoe UI"
                                        FontSize="12"
                                        VerticalAlignment="Center"
-                                       Text=".\"/>
+                                       Text="{Binding PathDisplay}"/>
                         </Border>
                     </DockPanel>
         
                     <!-- New Folder Inline Dialog -->
-                    <Border x:Name="NewFolderPanel" Grid.Row="2" Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" Padding="8" Margin="0,0,0,6" Visibility="Collapsed">
+                    <Border x:Name="NewFolderPanel" Grid.Row="2" Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" Padding="8" Margin="0,0,0,6" Visibility="{Binding NewFolderPanelVisibility}">
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0">
-                                <Button x:Name="CreateFolderButton" Style="{StaticResource PrimaryButton}" Content="作成" Padding="20,6" Margin="0,0,8,0"/>
-                                <Button x:Name="CancelFolderButton" Style="{StaticResource SecondaryButton}" Content="キャンセル" Padding="20,6" IsCancel="True"/>
+                                <Button x:Name="CreateFolderButton" Style="{StaticResource PrimaryButton}" Content="作成" Padding="20,6" Margin="0,0,8,0" Command="{Binding CreateFolderCommand}"/>
+                                <Button x:Name="CancelFolderButton" Style="{StaticResource SecondaryButton}" Content="キャンセル" Padding="20,6" IsCancel="True" Command="{Binding HideNewFolderPanelCommand}"/>
                             </StackPanel>
-                            <TextBox x:Name="NewFolderNameTextBox" Style="{StaticResource DarkTextBox}" VerticalAlignment="Center" />
+                            <TextBox x:Name="NewFolderNameTextBox" Style="{StaticResource DarkTextBox}" VerticalAlignment="Center" Text="{Binding NewFolderName, UpdateSourceTrigger=PropertyChanged}">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Enter" Command="{Binding CreateFolderCommand}" />
+                                    <KeyBinding Key="Escape" Command="{Binding HideNewFolderPanelCommand}" />
+                                </TextBox.InputBindings>
+                            </TextBox>
                         </DockPanel>
                     </Border>
         
@@ -418,7 +436,12 @@
                               Margin="0,0,0,6"
                               ScrollViewer.HorizontalScrollBarVisibility="Auto"
                               VirtualizingPanel.IsVirtualizing="False"
-                              SelectionMode="Extended">
+                              SelectionMode="Single"
+                              ItemsSource="{Binding ExplorerItems}"
+                              SelectedItem="{Binding SelectedExplorerItem}">
+                        <ListView.InputBindings>
+                            <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding ItemDoubleClickCommand}" CommandParameter="{Binding SelectedExplorerItem}" />
+                        </ListView.InputBindings>
                         <ListView.ItemContainerStyle>
                             <Style TargetType="ListViewItem">
                                 <Setter Property="Foreground" Value="#F1F1F1"/>
@@ -481,7 +504,8 @@
                                       Foreground="#AAAAAA" 
                                       FontSize="11"
                                       Margin="0,0,0,10" 
-                                      Cursor="Hand"/>
+                                      Cursor="Hand"
+                                      IsChecked="{Binding IsSystemInfoVisible}"/>
                             <!-- Prefix -->
                             <Grid Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
@@ -489,7 +513,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="接頭辞:" Style="{StaticResource FormLabel}"/>
-                                <TextBox x:Name="PrefixTextBox" Grid.Column="1" Style="{StaticResource DarkTextBox}"/>
+                                <TextBox x:Name="PrefixTextBox" Grid.Column="1" Style="{StaticResource DarkTextBox}" Text="{Binding Prefix, UpdateSourceTrigger=PropertyChanged}"/>
                             </Grid>
          
                             <!-- Sequence + Format -->
@@ -503,9 +527,9 @@
                                     <ColumnDefinition Width="70"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="連番:" Style="{StaticResource FormLabel}"/>
-                                <TextBox x:Name="SequenceTextBox" Grid.Column="1" Style="{StaticResource DarkTextBox}"/>
+                                <TextBox x:Name="SequenceTextBox" Grid.Column="1" Style="{StaticResource DarkTextBox}" Text="{Binding Sequence, UpdateSourceTrigger=PropertyChanged}" MaxLength="{Binding SequenceMaxLength}" IsEnabled="{Binding Prefix, Converter={StaticResource StringToBoolConverter}, FallbackValue=False}"/>
                                 
-                                <ComboBox x:Name="DigitsComboBox" Grid.Column="3" Style="{StaticResource DarkComboBox}" Width="65" SelectedIndex="3">
+                                <ComboBox x:Name="DigitsComboBox" Grid.Column="3" Style="{StaticResource DarkComboBox}" Width="65" SelectedIndex="{Binding SelectedDigitsIndex}" IsEnabled="{Binding Prefix, Converter={StaticResource StringToBoolConverter}, FallbackValue=False}">
                                     <ComboBoxItem Content="1桁" Foreground="Black" Background="White"/>
                                     <ComboBoxItem Content="2桁" Foreground="Black" Background="White"/>
                                     <ComboBoxItem Content="3桁" Foreground="Black" Background="White"/>
@@ -515,7 +539,7 @@
                                     <ComboBoxItem Content="日時" Foreground="Black" Background="White"/>
                                 </ComboBox>
                                 
-                                <ComboBox x:Name="FormatComboBox" Grid.Column="5" Style="{StaticResource DarkComboBox}">
+                                <ComboBox x:Name="FormatComboBox" Grid.Column="5" Style="{StaticResource DarkComboBox}" SelectedIndex="{Binding SelectedFormatIndex}">
                                     <ComboBoxItem Content="JPG" IsSelected="True" Foreground="Black" Background="White"/>
                                     <ComboBoxItem Content="PNG" Foreground="Black" Background="White"/>
                                 </ComboBox>
@@ -531,7 +555,7 @@
                                            FontFamily="Consolas, Yu Gothic UI"
                                            FontSize="12"
                                            TextTrimming="CharacterEllipsis"
-                                           Text="ファイル名プレビュー"/>
+                                           Text="{Binding FileNamePreview}"/>
                             </Border>
         
                             <!-- Save Button -->
@@ -543,7 +567,8 @@
                                     Padding="0,10"
                                     FontSize="14"
                                     FontWeight="Bold"
-                                    HorizontalAlignment="Stretch"/>
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding SaveCommand}"/>
                         </StackPanel>
                     </Border>
                 
