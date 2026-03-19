@@ -16,6 +16,7 @@ Add-Type -AssemblyName System.Windows.Forms
 # --- Resolve Paths ---
 $scriptPath = Split-Path $MyInvocation.MyCommand.Path -Parent
 $csPath     = Join-Path $scriptPath "PowerShotLogic.cs"
+$helperPath = Join-Path $scriptPath "FileNameHelper.cs"
 $saveDir    = Join-Path $scriptPath "..\Screenshots"
 
 # --- Recompile Guard: only Add-Type if not already loaded ---
@@ -25,8 +26,15 @@ if (-not ('PowerShot.Program' -as [type])) {
         Read-Host "Press Enter to exit"
         exit 1
     }
+    if (-not (Test-Path $helperPath)) {
+        Write-Host "ERROR: FileNameHelper.cs not found: $helperPath" -ForegroundColor Red
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
 
-    $csCode = [System.IO.File]::ReadAllText($csPath, [System.Text.Encoding]::UTF8)
+    $helperCode = [System.IO.File]::ReadAllText($helperPath, [System.Text.Encoding]::UTF8)
+    $logicCode  = [System.IO.File]::ReadAllText($csPath, [System.Text.Encoding]::UTF8)
+    $csCode = @($helperCode, $logicCode)
 
     # Referenced assemblies for WPF + Drawing + Interop
     $refs = @(
