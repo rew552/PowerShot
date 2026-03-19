@@ -213,20 +213,16 @@ namespace PowerShot
         {
             if (string.IsNullOrEmpty(name)) return null;
 
-            foreach (char c in ForbiddenChars)
+            int index = name.IndexOfAny(ForbiddenChars);
+            if (index >= 0)
             {
-                if (name.IndexOf(c) >= 0)
-                {
-                    return string.Format("ファイル名に使用できない文字が含まれています: '{0}'\n禁則文字: \\ / : * ? \" < > |", c);
-                }
+                return string.Format("ファイル名に使用できない文字が含まれています: '{0}'\n禁則文字: \\ / : * ? \" < > |", name[index]);
             }
 
-            foreach (char c in Path.GetInvalidFileNameChars())
+            index = name.IndexOfAny(Path.GetInvalidFileNameChars());
+            if (index >= 0)
             {
-                if (name.IndexOf(c) >= 0)
-                {
-                    return string.Format("ファイル名に使用できない文字が含まれています: (Code: {0})", (int)c);
-                }
+                return string.Format("ファイル名に使用できない文字が含まれています: (Code: {0})", (int)name[index]);
             }
 
             return null;
