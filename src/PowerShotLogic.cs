@@ -1049,8 +1049,7 @@ namespace PowerShot
 
         private void OpenPreviewWindow(string filePath)
         {
-            string ext = Path.GetExtension(filePath).ToLowerInvariant();
-            if (ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".bmp" && ext != ".gif")
+            if (!IsSupportedImageFile(filePath))
             {
                 return; // Not an image file
             }
@@ -1067,26 +1066,14 @@ namespace PowerShot
                     return;
                 }
 
-                Window previewWindow;
-                using (var fs = new FileStream(xamlPath, FileMode.Open, FileAccess.Read))
-                {
-                    previewWindow = (Window)XamlReader.Load(fs);
-                }
-
+                Window previewWindow = LoadWindowFromXaml(xamlPath);
                 previewWindow.Title = "PowerShot - " + Path.GetFileName(filePath);
                 previewWindow.Owner = _window;
 
                 var previewImage = (System.Windows.Controls.Image)previewWindow.FindName("PreviewImage");
                 var previewTitle = (TextBlock)previewWindow.FindName("PreviewTitle");
 
-                var bi = new BitmapImage();
-                bi.BeginInit();
-                bi.CacheOption = BitmapCacheOption.OnLoad;
-                bi.UriSource = new Uri(filePath, UriKind.Absolute);
-                bi.EndInit();
-                bi.Freeze();
-
-                previewImage.Source = bi;
+                previewImage.Source = CreateBitmapImage(filePath);
                 if (previewTitle != null)
                 {
                     previewTitle.Text = Path.GetFileName(filePath);
@@ -1100,6 +1087,31 @@ namespace PowerShot
                     string.Format("プレビューの表示に失敗しました:\n{0}", ex.Message),
                     "PowerShot", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
+        }
+
+        private bool IsSupportedImageFile(string filePath)
+        {
+            string ext = Path.GetExtension(filePath).ToLowerInvariant();
+            return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".gif";
+        }
+
+        private Window LoadWindowFromXaml(string xamlPath)
+        {
+            using (var fs = new FileStream(xamlPath, FileMode.Open, FileAccess.Read))
+            {
+                return (Window)XamlReader.Load(fs);
+            }
+        }
+
+        private BitmapImage CreateBitmapImage(string filePath)
+        {
+            var bi = new BitmapImage();
+            bi.BeginInit();
+            bi.CacheOption = BitmapCacheOption.OnLoad;
+            bi.UriSource = new Uri(filePath, UriKind.Absolute);
+            bi.EndInit();
+            bi.Freeze();
+            return bi;
         }
 
         // --- Helpers ---
