@@ -94,7 +94,9 @@ PowerShot/
 
 ## 📝 ドキュメント
 
-- [リリースノート (v2.0 からの変更点)](./docs/RELEASE_NOTES.md)
+- [リリースノート (v3.0)](./docs/RELEASE_NOTES_v3.md)
+- [プロジェクト構成と依存関係](./docs/DEPENDENCIES.md)
 - [技術仕様書 (内部アーキテクチャ)](./docs/ARCHITECTURE.md)
+- [今後のロードマップ](./docs/ROADMAP.md)
 
 ---

@@ -57,11 +57,11 @@
 
         <!-- Label style -->
         <Style x:Key="FormLabel" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#F1F1F1"/>
+            <Setter Property="Foreground" Value="#AAAAAA"/>
             <Setter Property="FontFamily" Value="Yu Gothic UI, Segoe UI"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="VerticalAlignment" Value="Top"/>
-            <Setter Property="Margin" Value="0,6,8,16"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
 
         <!-- Primary Button style -->
@@ -182,22 +182,18 @@
             <ScrollViewer Grid.Row="1" Margin="16" VerticalScrollBarVisibility="Auto">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="180"/>
+                        <ColumnDefinition Width="120"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="16"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Save Folder -->
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="保存先フォルダ" Style="{StaticResource FormLabel}"/>
-                    <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,16">
+                    <Grid Grid.Row="0" Grid.Column="1">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -206,10 +202,9 @@
                         <Button x:Name="BrowseFolderButton" Grid.Column="1" Content="..." Style="{StaticResource SecondaryButton}" Width="30"/>
                     </Grid>
 
-
                     <!-- JPEG Quality -->
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="JPEG保存品質" Style="{StaticResource FormLabel}"/>
-                    <Grid Grid.Row="3" Grid.Column="1" Margin="0,0,0,16">
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="JPEG保存品質" Style="{StaticResource FormLabel}"/>
+                    <Grid Grid.Row="2" Grid.Column="1">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="40"/>
@@ -217,8 +212,6 @@
                         <Slider x:Name="JpegQualitySlider" Grid.Column="0" Minimum="1" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <TextBlock x:Name="JpegQualityValueLabel" Grid.Column="1" Foreground="#F1F1F1" VerticalAlignment="Center"/>
                     </Grid>
-
-
                 </Grid>
             </ScrollViewer>
 

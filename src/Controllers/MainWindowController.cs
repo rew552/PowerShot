@@ -4,10 +4,10 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -422,20 +422,27 @@ namespace PowerShot
 
             using (Bitmap clonedBmp = (Bitmap)_capturedBitmap.Clone())
             {
-                Bitmap finalBmp = clonedBmp;
-                if (_settings.CropEnabled)
+                Bitmap cropBmp = null;
+                string error;
+                try
                 {
-                    Rectangle cropRect = CropController.ClampRect(
-                        _settings.CropX, _settings.CropY,
-                        _settings.CropWidth, _settings.CropHeight,
-                        clonedBmp.Width, clonedBmp.Height);
-                    finalBmp = clonedBmp.Clone(cropRect, clonedBmp.PixelFormat);
+                    if (_settings.CropEnabled)
+                    {
+                        Rectangle cropRect = CropController.ClampRect(
+                            _settings.CropX, _settings.CropY,
+                            _settings.CropWidth, _settings.CropHeight,
+                            clonedBmp.Width, clonedBmp.Height);
+                        cropBmp = clonedBmp.Clone(cropRect, clonedBmp.PixelFormat);
+                    }
+
+                    Bitmap finalBmp = cropBmp ?? clonedBmp;
+                    ApplyOverlays(finalBmp, false);
+                    error = FileManager.SaveImage(finalBmp, _currentDirectory, fileName, format, _settings.JpegQuality);
                 }
-
-                ApplyOverlays(finalBmp, false);
-                string error = FileManager.SaveImage(finalBmp, _currentDirectory, fileName, format, _settings.JpegQuality);
-
-                if (_settings.CropEnabled) finalBmp.Dispose();
+                finally
+                {
+                    if (cropBmp != null) cropBmp.Dispose();
+                }
 
                 if (error != null)
                 {
@@ -576,18 +583,26 @@ namespace PowerShot
 
         private static BitmapSource ConvertBitmapToImageSource(Bitmap bitmap)
         {
-            IntPtr hBitmap = bitmap.GetHbitmap();
+            var bmpData = bitmap.LockBits(
+                new Rectangle(0, 0, bitmap.Width, bitmap.Height),
+                System.Drawing.Imaging.ImageLockMode.ReadOnly,
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
             try
             {
-                var source = Imaging.CreateBitmapSourceFromHBitmap(
-                    hBitmap, IntPtr.Zero, Int32Rect.Empty,
-                    BitmapSizeOptions.FromEmptyOptions());
+                int stride = Math.Abs(bmpData.Stride);
+                byte[] pixels = new byte[bitmap.Height * stride];
+                Marshal.Copy(bmpData.Scan0, pixels, 0, pixels.Length);
+                var source = BitmapSource.Create(
+                    bitmap.Width, bitmap.Height,
+                    96, 96,
+                    PixelFormats.Bgra32,
+                    null, pixels, stride);
                 source.Freeze();
                 return source;
             }
             finally
             {
-                NativeMethods.DeleteObject(hBitmap);
+                bitmap.UnlockBits(bmpData);
             }
         }
     }

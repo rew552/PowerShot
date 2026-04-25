@@ -14,6 +14,12 @@ namespace PowerShot
         [DllImport("user32.dll")]
         public static extern bool SetProcessDPIAware();
 
+        // Windows 10 1607+ (build 14393). DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern bool SetProcessDpiAwarenessContext(IntPtr value);
+
+        public static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
+
         [DllImport("user32.dll")]
         public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
 

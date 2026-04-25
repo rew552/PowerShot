@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
@@ -62,7 +63,7 @@ namespace PowerShot
                 {
                     var serializer = new DataContractJsonSerializer(typeof(AppSettings));
                     var settings = (AppSettings)serializer.ReadObject(fs);
-                    if (settings.JpegQuality <= 0) settings.JpegQuality = 80;
+                    if (settings.JpegQuality <= 0 || settings.JpegQuality > 100) settings.JpegQuality = 80;
                     if (string.IsNullOrEmpty(settings.SaveFolder)) settings.SaveFolder = @".\Screenshots";
                     return settings;
                 }
@@ -83,7 +84,10 @@ namespace PowerShot
                     serializer.WriteObject(fs, settings);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine("  [Warn] 設定の保存に失敗しました: " + ex.Message);
+            }
         }
     }
 }

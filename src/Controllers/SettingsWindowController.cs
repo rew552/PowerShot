@@ -22,7 +22,7 @@ namespace PowerShot
         private Button _cancelButton;
         private Button _closeToolButton;
         private Grid _titleBarGrid;
-        
+
         private int _previewDigits;
         public bool SettingsChanged { get; private set; }
 
@@ -57,27 +57,18 @@ namespace PowerShot
         {
             _titleBarGrid.MouseDown += (s, e) => { if (e.ChangedButton == MouseButton.Left) _window.DragMove(); };
             _closeToolButton.Click += (s, e) => _window.Close();
-            
             _cancelButton.Click += (s, e) => _window.Close();
             _okButton.Click += OkButton_Click;
             _browseFolderButton.Click += BrowseFolderButton_Click;
-
             _jpegQualitySlider.ValueChanged += (s, e) => _jpegQualityValueLabel.Text = ((int)e.NewValue).ToString();
-            
         }
 
         private void Initialize()
         {
             _saveFolderTextBox.Text = _settings.SaveFolder;
-
-            
             _jpegQualitySlider.Value = _settings.JpegQuality;
             _jpegQualityValueLabel.Text = _settings.JpegQuality.ToString();
-            
-
-
         }
-
 
         private void BrowseFolderButton_Click(object sender, RoutedEventArgs e)
         {
@@ -86,7 +77,15 @@ namespace PowerShot
                 dialog.Description = "保存先フォルダを選択してください";
                 if (!string.IsNullOrEmpty(_saveFolderTextBox.Text))
                 {
-                    try { dialog.SelectedPath = Path.GetFullPath(Path.Combine(_settingsPath, "..", _saveFolderTextBox.Text)); } catch { }
+                    try
+                    {
+                        dialog.SelectedPath = Path.GetFullPath(
+                            Path.Combine(Path.GetDirectoryName(_settingsPath), _saveFolderTextBox.Text));
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("  [Warn] 保存先フォルダの解決に失敗しました: " + ex.Message);
+                    }
                 }
 
                 if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
@@ -99,10 +98,7 @@ namespace PowerShot
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
             _settings.SaveFolder = _saveFolderTextBox.Text;
-
             _settings.JpegQuality = (int)_jpegQualitySlider.Value;
-            
-
 
             SettingsManager.Save(_settingsPath, _settings);
             SettingsChanged = true;

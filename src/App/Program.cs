@@ -1,21 +1,57 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Windows;
 
 namespace PowerShot
 {
     public static class Program
     {
+        private const string MutexName = "PowerShot_SingleInstance_v3";
         private static SessionState _session = new SessionState();
 
         public static void Run(string scriptPath)
         {
-            NativeMethods.SetProcessDPIAware();
+            bool createdNew;
+            var mutex = new Mutex(true, MutexName, out createdNew);
+            if (!createdNew)
+            {
+                MessageBox.Show(
+                    "PowerShot はすでに起動しています。\nタスクバーまたはシステムトレイを確認してください。",
+                    "PowerShot", MessageBoxButton.OK, MessageBoxImage.Information);
+                mutex.Dispose();
+                return;
+            }
+
+            try
+            {
+                RunInternal(scriptPath);
+            }
+            finally
+            {
+                mutex.ReleaseMutex();
+                mutex.Dispose();
+            }
+        }
+
+        private static void RunInternal(string scriptPath)
+        {
+            // Per-Monitor V2: Windows 10 1703+ で WPF がモニターごとの DPI に自動追従する。
+            // 旧 Windows では EntryPointNotFoundException が出るので System DPI Aware にフォールバック。
+            try
+            {
+                if (!NativeMethods.SetProcessDpiAwarenessContext(
+                        NativeMethods.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
+                    NativeMethods.SetProcessDPIAware();
+            }
+            catch (EntryPointNotFoundException)
+            {
+                NativeMethods.SetProcessDPIAware();
+            }
 
             string settingsPath = Path.Combine(scriptPath, "settings.json");
             var settings = SettingsManager.Load(settingsPath);
-            
-            // Use the parent of scriptPath (project root) as the base for the SaveFolder
+
             string projectRoot = Path.GetDirectoryName(scriptPath);
             string saveDir = Path.GetFullPath(Path.Combine(projectRoot, settings.SaveFolder));
 
@@ -44,7 +80,6 @@ namespace PowerShot
             Console.WriteLine("  ---------------------------------------------------------------------");
             Console.WriteLine();
 
-            // Ensure save directory exists
             if (!Directory.Exists(saveDir))
             {
                 Directory.CreateDirectory(saveDir);
@@ -57,7 +92,6 @@ namespace PowerShot
             var watcher = new ClipboardWatcher(scriptPath, settings, _session);
             watcher.Start();
 
-            // Handle console close
             Console.CancelKeyPress += (sender, e) =>
             {
                 e.Cancel = true;
@@ -70,7 +104,6 @@ namespace PowerShot
             watcher.Dispose();
             Console.WriteLine("\nPowerShotを終了しました。");
         }
-}
-
+    }
 }
 

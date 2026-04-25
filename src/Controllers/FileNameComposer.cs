@@ -95,8 +95,8 @@ namespace PowerShot
         public void ApplyFromFileName(string fileName)
         {
             string nameNoExt = Path.GetFileNameWithoutExtension(fileName);
-            var matchTimestamp = Regex.Match(nameNoExt, @"^(.+?)_(\d{8}-\d{6})$");
-            var matchTimestampOnly = Regex.Match(nameNoExt, @"^(\d{8}-\d{6})$");
+            var matchTimestamp = Regex.Match(nameNoExt, @"^(.+?)_(\d{8}_\d{6})$");
+            var matchTimestampOnly = Regex.Match(nameNoExt, @"^(\d{8}_\d{6})$");
             var matchSimple = Regex.Match(nameNoExt, @"^(.+?)_(\d+)$");
 
             _suppress = true;

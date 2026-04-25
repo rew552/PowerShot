@@ -133,8 +133,7 @@ namespace PowerShot
                 {
                     foreach (var fmt in formats)
                     {
-                        if (fmt.IndexOf("XML Spreadsheet", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                            fmt.Equals("HTML Format", StringComparison.OrdinalIgnoreCase))
+                        if (fmt.IndexOf("XML Spreadsheet", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             return; // Excel cell copy detected — ignore
                         }
@@ -170,7 +169,10 @@ namespace PowerShot
                 // Fire event to show UI
                 ShowMainWindow(bitmap);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine("  [Error] クリップボード処理中にエラーが発生しました: " + ex.Message);
+            }
         }
 
         private void ShowMainWindow(Bitmap bitmap)
