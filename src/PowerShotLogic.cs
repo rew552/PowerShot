@@ -304,6 +304,34 @@ namespace PowerShot
     }
 
     // ============================================================
+    // Dialog Helper — centralized MessageBox management
+    // ============================================================
+    internal static class DialogHelper
+    {
+        private const string DefaultTitle = "PowerShot";
+
+        public static void ShowError(string message, string title = null)
+        {
+            MessageBox.Show(message, title ?? DefaultTitle, MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        public static void ShowWarning(string message, string title = null)
+        {
+            MessageBox.Show(message, title ?? DefaultTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        public static void ShowInfo(string message, string title = null)
+        {
+            MessageBox.Show(message, title ?? DefaultTitle, MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        public static MessageBoxResult Confirm(string message, string title = null)
+        {
+            return MessageBox.Show(message, title ?? (DefaultTitle + " - 確認"), MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        }
+    }
+
+    // ============================================================
     // MainWindow Logic (CodeBehind bound dynamically)
     // ============================================================
     public class MainWindowController
@@ -575,9 +603,7 @@ namespace PowerShot
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    string.Format("フォルダの読み込みに失敗しました:\n{0}", ex.Message),
-                    "PowerShot", MessageBoxButton.OK, MessageBoxImage.Warning);
+                DialogHelper.ShowWarning(string.Format("フォルダの読み込みに失敗しました:\n{0}", ex.Message));
             }
 
         }
@@ -806,8 +832,7 @@ namespace PowerShot
         {
             if (_capturedBitmap == null)
             {
-                MessageBox.Show("保存する画像がありません。", "PowerShot",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                DialogHelper.ShowWarning("保存する画像がありません。");
                 return;
             }
 
@@ -815,8 +840,7 @@ namespace PowerShot
             string prefixError = FileManager.ValidateName(_prefixTextBox.Text);
             if (prefixError != null)
             {
-                MessageBox.Show(prefixError, "PowerShot - 入力エラー",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                DialogHelper.ShowWarning(prefixError, "PowerShot - 入力エラー");
                 return;
             }
 
@@ -833,8 +857,7 @@ namespace PowerShot
             string error = FileManager.SaveImage(_capturedBitmap, _currentDirectory, fileName, format, 80L);
             if (error != null)
             {
-                MessageBox.Show(error, "PowerShot - 保存エラー",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                DialogHelper.ShowError(error, "PowerShot - 保存エラー");
                 return;
             }
 
@@ -939,7 +962,7 @@ namespace PowerShot
             string error = FileManager.ValidateName(folderName);
             if (error != null)
             {
-                MessageBox.Show(error, "PowerShot - 入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+                DialogHelper.ShowWarning(error, "PowerShot - 入力エラー");
                 return;
             }
 
@@ -953,12 +976,12 @@ namespace PowerShot
                 }
                 else
                 {
-                    MessageBox.Show("同名のフォルダーが既に存在します。", "PowerShot", MessageBoxButton.OK, MessageBoxImage.Information);
+                    DialogHelper.ShowInfo("同名のフォルダーが既に存在します。");
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("フォルダーの作成に失敗しました:\n" + ex.Message, "PowerShot", MessageBoxButton.OK, MessageBoxImage.Error);
+                DialogHelper.ShowError("フォルダーの作成に失敗しました:\n" + ex.Message);
             }
 
             _newFolderPanel.Visibility = Visibility.Collapsed;
@@ -993,7 +1016,7 @@ namespace PowerShot
                 msg = string.Format("選択された {0} 個の項目を完全に削除してもよろしいですか？\nこの操作は元に戻せません。", selectedItems.Count);
             }
 
-            var result = MessageBox.Show(msg, "PowerShot - 削除の確認", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            var result = DialogHelper.Confirm(msg);
             
             if (result == MessageBoxResult.Yes)
             {
@@ -1014,7 +1037,7 @@ namespace PowerShot
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("削除に失敗しました:\n" + ex.Message, "PowerShot", MessageBoxButton.OK, MessageBoxImage.Error);
+                    DialogHelper.ShowError("削除に失敗しました:\n" + ex.Message);
                 }
             }
         }
@@ -1062,8 +1085,7 @@ namespace PowerShot
 
                 if (!File.Exists(xamlPath))
                 {
-                    MessageBox.Show("PreviewWindow.xaml が見つかりません。",
-                        "PowerShot", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    DialogHelper.ShowWarning("PreviewWindow.xaml が見つかりません。");
                     return;
                 }
 
@@ -1096,9 +1118,7 @@ namespace PowerShot
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    string.Format("プレビューの表示に失敗しました:\n{0}", ex.Message),
-                    "PowerShot", MessageBoxButton.OK, MessageBoxImage.Warning);
+                DialogHelper.ShowWarning(string.Format("プレビューの表示に失敗しました:\n{0}", ex.Message));
             }
         }
 
@@ -1246,8 +1266,7 @@ namespace PowerShot
                 string xamlPath = Path.Combine(_scriptPath, "MainWindow.xaml");
                 if (!File.Exists(xamlPath))
                 {
-                    MessageBox.Show("MainWindow.xaml が見つかりません。",
-                        "PowerShot", MessageBoxButton.OK, MessageBoxImage.Error);
+                    DialogHelper.ShowError("MainWindow.xaml が見つかりません。");
                     return;
                 }
 
@@ -1275,9 +1294,7 @@ namespace PowerShot
             catch (Exception ex)
             {
                 _isWindowOpen = false;
-                MessageBox.Show(
-                    string.Format("UIの表示に失敗しました:\n{0}", ex.Message),
-                    "PowerShot", MessageBoxButton.OK, MessageBoxImage.Error);
+                DialogHelper.ShowError(string.Format("UIの表示に失敗しました:\n{0}", ex.Message));
             }
         }
 
