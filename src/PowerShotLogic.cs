@@ -535,16 +535,16 @@ namespace PowerShot
             try
             {
                 // Folders sorted by name ascending
-                var dirs = Directory.GetDirectories(_currentDirectory).OrderBy(d => d, StringComparer.OrdinalIgnoreCase).ToArray();
+                var dirs = new DirectoryInfo(_currentDirectory).GetDirectories().OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase).ToArray();
                 foreach (var dir in dirs)
                 {
                     items.Add(new ExplorerItem
                     {
-                        Name = Path.GetFileName(dir),
-                        FullPath = dir,
+                        Name = dir.Name,
+                        FullPath = dir.FullName,
                         IsDirectory = true,
-                        LastModified = Directory.GetLastWriteTime(dir),
-                        Icon = IconHelper.GetIcon(dir, true)
+                        LastModified = dir.LastWriteTime,
+                        Icon = IconHelper.GetIcon(dir.FullName, true)
                     });
                 }
 
