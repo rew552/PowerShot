@@ -348,11 +348,13 @@ namespace PowerShot
             _session = session;
             Saved = false;
 
+            string rootWithTrailing = _rootBoundary.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
             // Determine initial directory
             if (!string.IsNullOrEmpty(_session.LastDirectory) && Directory.Exists(_session.LastDirectory))
             {
-                string normLast = NormalizePath(_session.LastDirectory);
-                if (normLast.StartsWith(_rootBoundary, StringComparison.OrdinalIgnoreCase))
+                string normLast = NormalizePath(_session.LastDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                if (normLast.StartsWith(rootWithTrailing, StringComparison.OrdinalIgnoreCase))
                 {
                     _currentDirectory = _session.LastDirectory;
                 }
@@ -490,8 +492,10 @@ namespace PowerShot
 
         private void NavigateToDirectory(string path)
         {
-            string normalizedTarget = NormalizePath(path);
-            if (!normalizedTarget.StartsWith(_rootBoundary, StringComparison.OrdinalIgnoreCase))
+            string normalizedTarget = NormalizePath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            string rootWithTrailing = _rootBoundary.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+            if (!normalizedTarget.StartsWith(rootWithTrailing, StringComparison.OrdinalIgnoreCase))
             {
                 return; // Block access above root boundary
             }
