@@ -197,7 +197,7 @@ namespace PowerShot
                     // Clear clipboard after save to avoid re-triggering
                     if (controller.Saved)
                     {
-                        try { System.Windows.Clipboard.Clear(); } catch { }
+                        try { System.Windows.Clipboard.Clear(); } catch (Exception ex) { Console.WriteLine("Context message: " + ex.Message); }
                         _lastImageHash = null;
                     }
                 };
@@ -253,8 +253,9 @@ namespace PowerShot
                 bitmap.UnlockBits(bmpData);
                 return bitmap;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine("Context message: " + ex.Message);
                 return null;
             }
         }
