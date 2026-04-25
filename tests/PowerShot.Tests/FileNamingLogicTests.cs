@@ -70,7 +70,7 @@ namespace PowerShot.Tests
         [Fact]
         public void ValidateName_NullOrEmpty_ReturnsNull()
         {
-            Assert.Null(FileNamingLogic.ValidateName(null));
+            Assert.Null(FileNamingLogic.ValidateName(null!));
             Assert.Null(FileNamingLogic.ValidateName(""));
         }
     }
