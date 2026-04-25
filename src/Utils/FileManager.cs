@@ -60,10 +60,14 @@ namespace PowerShot
             }
         }
 
+        private static ImageCodecInfo[] _codecs;
+
         private static ImageCodecInfo GetEncoder(ImageFormat format)
         {
-            var codecs = ImageCodecInfo.GetImageDecoders();
-            foreach (var codec in codecs)
+            if (_codecs == null)
+                _codecs = ImageCodecInfo.GetImageDecoders();
+
+            foreach (var codec in _codecs)
             {
                 if (codec.FormatID == format.Guid)
                     return codec;
