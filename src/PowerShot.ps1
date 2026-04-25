@@ -14,19 +14,23 @@ Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 
 # --- Resolve Paths ---
-$scriptPath = Split-Path $MyInvocation.MyCommand.Path -Parent
-$csPath     = Join-Path $scriptPath "PowerShotLogic.cs"
-$saveDir    = Join-Path $scriptPath "..\Screenshots"
+$scriptPath  = Split-Path $MyInvocation.MyCommand.Path -Parent
+$csLogicPath = Join-Path $scriptPath "PowerShotLogic.cs"
+$csNamingPath = Join-Path $scriptPath "FileNamingLogic.cs"
+$saveDir     = Join-Path $scriptPath "..\Screenshots"
 
 # --- Recompile Guard: only Add-Type if not already loaded ---
 if (-not ('PowerShot.Program' -as [type])) {
-    if (-not (Test-Path $csPath)) {
-        Write-Host "ERROR: PowerShotLogic.cs not found: $csPath" -ForegroundColor Red
+    if (-not (Test-Path $csLogicPath)) {
+        Write-Host "ERROR: PowerShotLogic.cs not found: $csLogicPath" -ForegroundColor Red
         Read-Host "Press Enter to exit"
         exit 1
     }
-
-    $csCode = [System.IO.File]::ReadAllText($csPath, [System.Text.Encoding]::UTF8)
+    if (-not (Test-Path $csNamingPath)) {
+        Write-Host "ERROR: FileNamingLogic.cs not found: $csNamingPath" -ForegroundColor Red
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
 
     # Referenced assemblies for WPF + Drawing + Interop
     $refs = @(
@@ -42,7 +46,7 @@ if (-not ('PowerShot.Program' -as [type])) {
     )
 
     try {
-        Add-Type -TypeDefinition $csCode -ReferencedAssemblies $refs -ErrorAction Stop
+        Add-Type -Path @($csNamingPath, $csLogicPath) -ReferencedAssemblies $refs -ErrorAction Stop
     }
     catch {
         Write-Host "ERROR: C# Compilation Failed:" -ForegroundColor Red
