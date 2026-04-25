@@ -37,11 +37,16 @@ namespace PowerShot
         /// </summary>
         public static string GenerateFileName(string prefix, string optionName, string seqStr, string format)
         {
+            return GenerateFileName(prefix, optionName, seqStr, format, DateTime.Now);
+        }
+
+        internal static string GenerateFileName(string prefix, string optionName, string seqStr, string format, DateTime now)
+        {
             string ext = format.ToLowerInvariant();
 
             if (string.IsNullOrWhiteSpace(prefix) && string.IsNullOrWhiteSpace(optionName))
             {
-                string middle = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string middle = now.ToString("yyyyMMdd_HHmmss");
                 return string.Format("SS_{0}.{1}", middle, ext);
             }
 
