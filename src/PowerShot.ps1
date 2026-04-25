@@ -18,7 +18,7 @@ $scriptPath = Split-Path $MyInvocation.MyCommand.Path -Parent
 
 # --- Recompile Guard: only Add-Type if not already loaded ---
 if (-not ('PowerShot.Program' -as [type])) {
-    $csFiles = (Get-ChildItem -Path $scriptPath -Recurse -Filter *.cs | Where-Object { $_.Name -notmatch "ViewerLogic.cs" -and $_.Name -notmatch "PowerShotLogic.cs" -and $_.FullName -notmatch "ViewerController|ViewerModels" }).FullName
+    $csFiles = (Get-ChildItem -Path $scriptPath -Recurse -Filter *.cs | Where-Object { $_.FullName -notmatch "ViewerController|ViewerModels" }).FullName
 
     if (-not $csFiles -or $csFiles.Count -eq 0) {
         Write-Host "ERROR: No C# source files found in $scriptPath" -ForegroundColor Red

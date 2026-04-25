@@ -72,3 +72,28 @@
 - PowerShell 5.1 以降 (標準搭載)
 
 ---
+
+## 📁 プロジェクト構成
+
+```
+PowerShot/
+├── powershot.bat          … 本体起動 (STA + クリップボード監視)
+├── powershot-viewer.bat   … 独立型ビューア起動
+└── src/
+    ├── PowerShot.ps1      … C# をオンメモリコンパイルして起動
+    ├── Viewer.ps1         … ビューアの起動スクリプト
+    ├── App/               … エントリポイント・クリップボード監視
+    ├── Controllers/       … ウィンドウのコントローラ層
+    ├── Models/            … 設定・セッション・データモデル
+    ├── Utils/             … 共通ユーティリティ (描画・アイコン・連番など)
+    ├── Views/             … XAML / HTML テンプレート
+    └── settings.json      … 設定の永続化先 (初回起動時に自動生成)
+```
+
+---
+
+## 📝 リリースノート
+
+[v2.0 からの変更点はこちら](./RELEASE_NOTES.md)
+
+---

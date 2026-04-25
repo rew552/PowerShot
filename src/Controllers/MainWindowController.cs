@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,11 +14,6 @@ using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Json;
 
 namespace PowerShot
 {
@@ -30,9 +23,12 @@ namespace PowerShot
         private Bitmap _capturedBitmap;
         private string _rootBoundary;
         private string _scriptDir;
+        private string _settingsPath;
         private string _currentDirectory;
         private SessionState _session;
         private AppSettings _settings;
+        private CropController _cropController;
+        private DispatcherTimer _previewRedrawTimer;
         private bool _suppressSequenceUpdate = false;
 
         // UI Controls
@@ -81,8 +77,9 @@ namespace PowerShot
             _window = window;
             _capturedBitmap = capturedBitmap;
             _scriptDir = scriptDir;
+            _settingsPath = Path.Combine(scriptDir, "settings.json");
             _settings = settings;
-            
+
             string rootPath = Path.GetFullPath(Path.Combine(scriptDir, settings.SaveFolder));
             _rootBoundary = NormalizePath(rootPath);
             _session = session;
@@ -194,20 +191,8 @@ namespace PowerShot
             DataObject.AddPastingHandler(_sequenceTextBox, SequenceTextBox_Pasting);
 
             // Crop Events
-            if (_cropCanvas != null)
-            {
-                _cropCanvas.MouseDown += CropCanvas_MouseDown;
-                _cropCanvas.MouseMove += CropCanvas_MouseMove;
-                _cropCanvas.MouseUp += CropCanvas_MouseUp;
-                _cropCanvas.MouseLeave += CropCanvas_MouseLeave;
-            }
             if (_cropEnableCheckBox != null) _cropEnableCheckBox.Click += CropSettings_Changed;
             if (_resetCropButton != null) _resetCropButton.Click += ResetCropButton_Click;
-            
-            if (_cropXTextBox != null) _cropXTextBox.TextChanged += CropTextBox_TextChanged;
-            if (_cropYTextBox != null) _cropYTextBox.TextChanged += CropTextBox_TextChanged;
-            if (_cropWidthTextBox != null) _cropWidthTextBox.TextChanged += CropTextBox_TextChanged;
-            if (_cropHeightTextBox != null) _cropHeightTextBox.TextChanged += CropTextBox_TextChanged;
 
             if (_overlayEnableCheckBox != null) _overlayEnableCheckBox.Click += OverlaySettings_Changed;
             if (_embedSysInfoCheckBox != null) _embedSysInfoCheckBox.Click += OverlaySettings_Changed;
@@ -219,21 +204,22 @@ namespace PowerShot
 
         private void Initialize()
         {
-            // Set preview image
+            // Initialize crop sub-controller (canvas dims + drag wiring + initial sync)
+            _cropController = new CropController(
+                _cropCanvas, _cropSelectionRect,
+                _cropXTextBox, _cropYTextBox, _cropWidthTextBox, _cropHeightTextBox,
+                _capturedBitmap, _settings, OnCropChanged);
+            _cropController.Initialize();
+
             if (_capturedBitmap != null)
             {
-                if (_cropCanvas != null)
-                {
-                    _cropCanvas.Width = _capturedBitmap.Width;
-                    _cropCanvas.Height = _capturedBitmap.Height;
-                }
                 RedrawPreview();
             }
 
             // Restore session state
             _suppressSequenceUpdate = true;
             _prefixTextBox.Text = _session.LastPrefix ?? "";
-            
+
             if (_digitsComboBox != null)
             {
                 if (_session.LastSequenceDigits == -1)
@@ -245,7 +231,6 @@ namespace PowerShot
                     _digitsComboBox.SelectedIndex = _session.LastSequenceDigits - 1;
                 }
 
-                // Ensure interlock is correct after loading session data
                 UpdateInputInterlock();
                 UpdateSequence();
             }
@@ -253,15 +238,12 @@ namespace PowerShot
             if (_settings != null)
             {
                 if (_cropEnableCheckBox != null) _cropEnableCheckBox.IsChecked = _settings.CropEnabled;
-                if (_cropCanvas != null) _cropCanvas.Visibility = _settings.CropEnabled ? Visibility.Visible : Visibility.Collapsed;
-                
-                SyncCropTextBoxesFromSettings();
-                SyncCropRectFromSettings();
+                _cropController.SetActive(_settings.CropEnabled);
 
                 if (_overlayEnableCheckBox != null) _overlayEnableCheckBox.IsChecked = _settings.OverlayEnabled;
                 if (_embedSysInfoCheckBox != null) _embedSysInfoCheckBox.IsChecked = _settings.EmbedSysInfo;
                 if (_overlayTextBox != null) _overlayTextBox.Text = _settings.OverlayText;
-                
+
                 SetComboBoxByTag(_sysInfoPositionComboBox, _settings.SysInfoPosition);
                 SetComboBoxByTag(_overlayTextPositionComboBox, _settings.OverlayTextPosition);
             }
@@ -453,9 +435,8 @@ namespace PowerShot
             }
             settingsWindow.Owner = _window;
             
-            string settingsPath = Path.Combine(_scriptDir, "settings.json");
             int currentDigits = GetSelectedDigits();
-            var controller = new SettingsWindowController(settingsWindow, _settings, settingsPath, currentDigits);
+            var controller = new SettingsWindowController(settingsWindow, _settings, _settingsPath, currentDigits);
             if (controller.ShowDialog())
             {
                 string newRoot = Path.GetFullPath(Path.Combine(_scriptDir, _settings.SaveFolder));
@@ -670,16 +651,10 @@ namespace PowerShot
                 Bitmap finalBmp = clonedBmp;
                 if (_settings.CropEnabled)
                 {
-                    Rectangle cropRect = new Rectangle(_settings.CropX, _settings.CropY, _settings.CropWidth, _settings.CropHeight);
-                    if (cropRect.X > clonedBmp.Width - 10) cropRect.X = clonedBmp.Width - 10;
-                    if (cropRect.Y > clonedBmp.Height - 10) cropRect.Y = clonedBmp.Height - 10;
-                    if (cropRect.X < 0) cropRect.X = 0;
-                    if (cropRect.Y < 0) cropRect.Y = 0;
-                    if (cropRect.Width < 10) cropRect.Width = 10;
-                    if (cropRect.Height < 10) cropRect.Height = 10;
-                    if (cropRect.Right > clonedBmp.Width) cropRect.Width = clonedBmp.Width - cropRect.X;
-                    if (cropRect.Bottom > clonedBmp.Height) cropRect.Height = clonedBmp.Height - cropRect.Y;
-
+                    Rectangle cropRect = ClampCropRect(
+                        _settings.CropX, _settings.CropY,
+                        _settings.CropWidth, _settings.CropHeight,
+                        clonedBmp.Width, clonedBmp.Height);
                     finalBmp = clonedBmp.Clone(cropRect, clonedBmp.PixelFormat);
                 }
 
@@ -713,11 +688,11 @@ namespace PowerShot
 
         // --- Crop ---
 
-        private enum CropDragMode { None, DrawNew, Move, ResizeTopLeft, ResizeTopRight, ResizeBottomLeft, ResizeBottomRight, ResizeTop, ResizeBottom, ResizeLeft, ResizeRight }
-        private CropDragMode _cropDragMode = CropDragMode.None;
-        private System.Windows.Point _dragStartPoint;
-        private Rect _dragStartRect;
-        private bool _suppressCropTextBoxUpdate = false;
+        private void OnCropChanged()
+        {
+            SaveSettings();
+            RedrawPreviewDebounced();
+        }
 
         private void CropSettings_Changed(object sender, RoutedEventArgs e)
         {
@@ -725,283 +700,15 @@ namespace PowerShot
             if (_cropEnableCheckBox != null)
             {
                 _settings.CropEnabled = _cropEnableCheckBox.IsChecked ?? false;
-                if (_cropCanvas != null) _cropCanvas.Visibility = _settings.CropEnabled ? Visibility.Visible : Visibility.Collapsed;
+                if (_cropController != null) _cropController.SetActive(_settings.CropEnabled);
             }
-            SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
+            SaveSettings();
             RedrawPreview();
         }
 
         private void ResetCropButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_capturedBitmap == null || _settings == null) return;
-            _settings.CropX = 0;
-            _settings.CropY = 0;
-            _settings.CropWidth = _capturedBitmap.Width;
-            _settings.CropHeight = _capturedBitmap.Height;
-            SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
-            SyncCropTextBoxesFromSettings();
-            SyncCropRectFromSettings();
-        }
-
-        private void SyncCropTextBoxesFromSettings()
-        {
-            if (_settings == null || _cropXTextBox == null) return;
-            _suppressCropTextBoxUpdate = true;
-            _cropXTextBox.Text = _settings.CropX.ToString();
-            _cropYTextBox.Text = _settings.CropY.ToString();
-            _cropWidthTextBox.Text = _settings.CropWidth.ToString();
-            _cropHeightTextBox.Text = _settings.CropHeight.ToString();
-            _suppressCropTextBoxUpdate = false;
-        }
-
-        private void SyncCropRectFromSettings()
-        {
-            if (_settings == null || _cropSelectionRect == null || _capturedBitmap == null) return;
-            
-            if (_settings.CropWidth <= 0 || _settings.CropHeight <= 0)
-            {
-                _settings.CropWidth = _capturedBitmap.Width;
-                _settings.CropHeight = _capturedBitmap.Height;
-            }
-            
-            UpdateCropRectUI(new Rect(_settings.CropX, _settings.CropY, _settings.CropWidth, _settings.CropHeight));
-        }
-
-        private void UpdateCropRectUI(Rect rect)
-        {
-            if (_cropSelectionRect == null) return;
-            Canvas.SetLeft(_cropSelectionRect, rect.X);
-            Canvas.SetTop(_cropSelectionRect, rect.Y);
-            _cropSelectionRect.Width = rect.Width;
-            _cropSelectionRect.Height = rect.Height;
-            _cropSelectionRect.Visibility = Visibility.Visible;
-        }
-
-        private void CropTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (_suppressCropTextBoxUpdate || _settings == null || _capturedBitmap == null) return;
-            
-            int x, y, w, h;
-            if (int.TryParse(_cropXTextBox.Text, out x) &&
-                int.TryParse(_cropYTextBox.Text, out y) &&
-                int.TryParse(_cropWidthTextBox.Text, out w) &&
-                int.TryParse(_cropHeightTextBox.Text, out h))
-            {
-                if (x > _capturedBitmap.Width - 10) x = _capturedBitmap.Width - 10;
-                if (y > _capturedBitmap.Height - 10) y = _capturedBitmap.Height - 10;
-                if (x < 0) x = 0;
-                if (y < 0) y = 0;
-                if (w < 10) w = 10;
-                if (h < 10) h = 10;
-                if (x + w > _capturedBitmap.Width) w = _capturedBitmap.Width - x;
-                if (y + h > _capturedBitmap.Height) h = _capturedBitmap.Height - y;
-
-                _settings.CropX = x;
-                _settings.CropY = y;
-                _settings.CropWidth = w;
-                _settings.CropHeight = h;
-                
-                UpdateCropRectUI(new Rect(x, y, w, h));
-                SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
-                RedrawPreview();
-            }
-        }
-
-        private CropDragMode GetCropDragMode(System.Windows.Point p)
-        {
-            if (_cropSelectionRect.Visibility != Visibility.Visible) return CropDragMode.DrawNew;
-
-            double x = Canvas.GetLeft(_cropSelectionRect);
-            double y = Canvas.GetTop(_cropSelectionRect);
-            double w = _cropSelectionRect.Width;
-            double h = _cropSelectionRect.Height;
-            
-            double margin = 8.0;
-
-            bool left = Math.Abs(p.X - x) <= margin;
-            bool right = Math.Abs(p.X - (x + w)) <= margin;
-            bool top = Math.Abs(p.Y - y) <= margin;
-            bool bottom = Math.Abs(p.Y - (y + h)) <= margin;
-            
-            bool insideX = p.X >= x && p.X <= x + w;
-            bool insideY = p.Y >= y && p.Y <= y + h;
-
-            if (top && left) return CropDragMode.ResizeTopLeft;
-            if (top && right) return CropDragMode.ResizeTopRight;
-            if (bottom && left) return CropDragMode.ResizeBottomLeft;
-            if (bottom && right) return CropDragMode.ResizeBottomRight;
-            
-            if (top && insideX) return CropDragMode.ResizeTop;
-            if (bottom && insideX) return CropDragMode.ResizeBottom;
-            if (left && insideY) return CropDragMode.ResizeLeft;
-            if (right && insideY) return CropDragMode.ResizeRight;
-            
-            if (insideX && insideY) return CropDragMode.Move;
-            
-            return CropDragMode.DrawNew;
-        }
-
-        private void SetCropCursor(CropDragMode mode)
-        {
-            if (_cropCanvas == null) return;
-            switch (mode)
-            {
-                case CropDragMode.ResizeTopLeft:
-                case CropDragMode.ResizeBottomRight:
-                    _cropCanvas.Cursor = Cursors.SizeNWSE;
-                    break;
-                case CropDragMode.ResizeTopRight:
-                case CropDragMode.ResizeBottomLeft:
-                    _cropCanvas.Cursor = Cursors.SizeNESW;
-                    break;
-                case CropDragMode.ResizeTop:
-                case CropDragMode.ResizeBottom:
-                    _cropCanvas.Cursor = Cursors.SizeNS;
-                    break;
-                case CropDragMode.ResizeLeft:
-                case CropDragMode.ResizeRight:
-                    _cropCanvas.Cursor = Cursors.SizeWE;
-                    break;
-                case CropDragMode.Move:
-                    _cropCanvas.Cursor = Cursors.SizeAll;
-                    break;
-                default:
-                    _cropCanvas.Cursor = Cursors.Cross;
-                    break;
-            }
-        }
-
-        private void CropCanvas_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (_capturedBitmap == null || _cropEnableCheckBox == null || _cropEnableCheckBox.IsChecked != true) return;
-            
-            System.Windows.Point p = e.GetPosition(_cropCanvas);
-            _dragStartPoint = p;
-            _cropDragMode = GetCropDragMode(p);
-            
-            if (_cropDragMode == CropDragMode.DrawNew)
-            {
-                _dragStartRect = new Rect(p, new System.Windows.Size(0, 0));
-                UpdateCropRectUI(_dragStartRect);
-            }
-            else
-            {
-                _dragStartRect = new Rect(
-                    Canvas.GetLeft(_cropSelectionRect),
-                    Canvas.GetTop(_cropSelectionRect),
-                    _cropSelectionRect.Width,
-                    _cropSelectionRect.Height);
-            }
-            
-            _cropCanvas.CaptureMouse();
-        }
-
-        private void CropCanvas_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (_capturedBitmap == null || _cropEnableCheckBox == null || _cropEnableCheckBox.IsChecked != true) return;
-            
-            System.Windows.Point p = e.GetPosition(_cropCanvas);
-
-            if (_cropDragMode == CropDragMode.None)
-            {
-                SetCropCursor(GetCropDragMode(p));
-                return;
-            }
-
-            double dx = p.X - _dragStartPoint.X;
-            double dy = p.Y - _dragStartPoint.Y;
-            Rect newRect = _dragStartRect;
-
-            if (_cropDragMode == CropDragMode.DrawNew)
-            {
-                double x = Math.Min(p.X, _dragStartPoint.X);
-                double y = Math.Min(p.Y, _dragStartPoint.Y);
-                double w = Math.Abs(p.X - _dragStartPoint.X);
-                double h = Math.Abs(p.Y - _dragStartPoint.Y);
-                newRect = new Rect(x, y, w, h);
-            }
-            else if (_cropDragMode == CropDragMode.Move)
-            {
-                newRect.X += dx;
-                newRect.Y += dy;
-            }
-            else
-            {
-                if (_cropDragMode == CropDragMode.ResizeTopLeft || _cropDragMode == CropDragMode.ResizeLeft || _cropDragMode == CropDragMode.ResizeBottomLeft)
-                {
-                    newRect.X += dx;
-                    newRect.Width -= dx;
-                }
-                if (_cropDragMode == CropDragMode.ResizeTopRight || _cropDragMode == CropDragMode.ResizeRight || _cropDragMode == CropDragMode.ResizeBottomRight)
-                {
-                    newRect.Width += dx;
-                }
-                if (_cropDragMode == CropDragMode.ResizeTopLeft || _cropDragMode == CropDragMode.ResizeTop || _cropDragMode == CropDragMode.ResizeTopRight)
-                {
-                    newRect.Y += dy;
-                    newRect.Height -= dy;
-                }
-                if (_cropDragMode == CropDragMode.ResizeBottomLeft || _cropDragMode == CropDragMode.ResizeBottom || _cropDragMode == CropDragMode.ResizeBottomRight)
-                {
-                    newRect.Height += dy;
-                }
-                
-                if (newRect.Width < 10) { newRect.Width = 10; if (_cropDragMode.ToString().Contains("Left")) newRect.X = _dragStartRect.Right - 10; }
-                if (newRect.Height < 10) { newRect.Height = 10; if (_cropDragMode.ToString().Contains("Top")) newRect.Y = _dragStartRect.Bottom - 10; }
-            }
-
-            if (newRect.X < 0) newRect.X = 0;
-            if (newRect.Y < 0) newRect.Y = 0;
-            if (newRect.Right > _cropCanvas.Width) newRect.X = _cropCanvas.Width - newRect.Width;
-            if (newRect.Bottom > _cropCanvas.Height) newRect.Y = _cropCanvas.Height - newRect.Height;
-            if (newRect.Width > _cropCanvas.Width) newRect.Width = _cropCanvas.Width;
-            if (newRect.Height > _cropCanvas.Height) newRect.Height = _cropCanvas.Height;
-            if (newRect.X < 0) newRect.X = 0;
-
-            UpdateCropRectUI(newRect);
-            
-            _suppressCropTextBoxUpdate = true;
-            if (_cropXTextBox != null) _cropXTextBox.Text = Math.Round(newRect.X).ToString();
-            if (_cropYTextBox != null) _cropYTextBox.Text = Math.Round(newRect.Y).ToString();
-            if (_cropWidthTextBox != null) _cropWidthTextBox.Text = Math.Round(newRect.Width).ToString();
-            if (_cropHeightTextBox != null) _cropHeightTextBox.Text = Math.Round(newRect.Height).ToString();
-            _suppressCropTextBoxUpdate = false;
-        }
-
-        private void CropCanvas_MouseUp(object sender, MouseButtonEventArgs e)
-        {
-            if (_cropDragMode != CropDragMode.None)
-            {
-                _cropCanvas.ReleaseMouseCapture();
-                _cropDragMode = CropDragMode.None;
-                
-                if (_settings != null && _cropXTextBox != null)
-                {
-                    int x, y, w, h;
-                    int.TryParse(_cropXTextBox.Text, out x);
-                    int.TryParse(_cropYTextBox.Text, out y);
-                    int.TryParse(_cropWidthTextBox.Text, out w);
-                    int.TryParse(_cropHeightTextBox.Text, out h);
-                    
-                    if (w < 10) w = 10;
-                    if (h < 10) h = 10;
-                    
-                    _settings.CropX = x;
-                    _settings.CropY = y;
-                    _settings.CropWidth = w;
-                    _settings.CropHeight = h;
-                    SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
-                    RedrawPreview();
-                }
-            }
-        }
-        
-        private void CropCanvas_MouseLeave(object sender, MouseEventArgs e)
-        {
-            if (_cropDragMode == CropDragMode.None && _cropCanvas != null)
-            {
-                _cropCanvas.Cursor = Cursors.Arrow;
-            }
+            if (_cropController != null) _cropController.Reset();
         }
 
         // --- Overlay & System Info ---
@@ -1021,7 +728,7 @@ namespace PowerShot
             var txtItem = _overlayTextPositionComboBox != null ? _overlayTextPositionComboBox.SelectedItem as ComboBoxItem : null;
             if (txtItem != null) _settings.OverlayTextPosition = (string)txtItem.Tag;
 
-            SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
+            SaveSettings();
         }
 
         private void UpdatePreviewButton_Click(object sender, RoutedEventArgs e)
@@ -1030,7 +737,7 @@ namespace PowerShot
             if (_overlayTextBox != null && _settings != null)
             {
                 _settings.OverlayText = _overlayTextBox.Text;
-                SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
+                SaveSettings();
             }
             RedrawPreview();
         }
@@ -1038,7 +745,7 @@ namespace PowerShot
         private void RedrawPreview()
         {
             if (_capturedBitmap == null) return;
-            
+
             using (Bitmap previewBmp = (Bitmap)_capturedBitmap.Clone())
             {
                 ApplyOverlays(previewBmp, true);
@@ -1046,97 +753,28 @@ namespace PowerShot
             }
         }
 
-        private PointF GetOverlayPosition(SizeF textSize, Rectangle bounds, string position, float padding)
+        // Coalesces bursts of redraw requests (e.g. crop textbox typing) into a single render.
+        // Why: cloning a 4K bitmap + GDI roundtrip per keystroke is wasteful.
+        private void RedrawPreviewDebounced()
         {
-            float rectW = textSize.Width + padding * 2;
-            float rectH = textSize.Height + padding * 2;
-            float x = bounds.X + padding;
-            float y = bounds.Y + padding;
-
-            if (position == "TopRight")
+            if (_previewRedrawTimer == null)
             {
-                x = bounds.Right - rectW - padding;
+                _previewRedrawTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+                _previewRedrawTimer.Tick += (s, e) => { _previewRedrawTimer.Stop(); RedrawPreview(); };
             }
-            else if (position == "BottomLeft")
-            {
-                y = bounds.Bottom - rectH - padding;
-            }
-            else if (position == "BottomRight")
-            {
-                x = bounds.Right - rectW - padding;
-                y = bounds.Bottom - rectH - padding;
-            }
-            
-            if (x < bounds.X) x = bounds.X;
-            if (y < bounds.Y) y = bounds.Y;
-            return new PointF(x, y);
+            _previewRedrawTimer.Stop();
+            _previewRedrawTimer.Start();
         }
 
         private void ApplyOverlays(Bitmap bmp, bool isPreview = false)
         {
             if (_settings == null || !_settings.OverlayEnabled) return;
 
-            Rectangle bounds = new Rectangle(0, 0, bmp.Width, bmp.Height);
-            
-            if (isPreview && _settings.CropEnabled)
-            {
-                bounds = new Rectangle(_settings.CropX, _settings.CropY, _settings.CropWidth, _settings.CropHeight);
-                if (bounds.X > bmp.Width - 10) bounds.X = bmp.Width - 10;
-                if (bounds.Y > bmp.Height - 10) bounds.Y = bmp.Height - 10;
-                if (bounds.X < 0) bounds.X = 0;
-                if (bounds.Y < 0) bounds.Y = 0;
-                if (bounds.Width < 10) bounds.Width = 10;
-                if (bounds.Height < 10) bounds.Height = 10;
-                if (bounds.Right > bmp.Width) bounds.Width = bmp.Width - bounds.X;
-                if (bounds.Bottom > bmp.Height) bounds.Height = bmp.Height - bounds.Y;
-            }
-            var overlays = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string>>();
+            Rectangle bounds = (isPreview && _settings.CropEnabled)
+                ? ClampCropRect(_settings.CropX, _settings.CropY, _settings.CropWidth, _settings.CropHeight, bmp.Width, bmp.Height)
+                : new Rectangle(0, 0, bmp.Width, bmp.Height);
 
-            if (_settings.EmbedSysInfo)
-            {
-                string info = GetSystemInfoString();
-                string pos = string.IsNullOrEmpty(_settings.SysInfoPosition) ? "TopLeft" : _settings.SysInfoPosition;
-                if (!overlays.ContainsKey(pos)) overlays[pos] = new System.Collections.Generic.List<string>();
-                overlays[pos].Add(info);
-            }
-            if (!string.IsNullOrWhiteSpace(_settings.OverlayText))
-            {
-                string pos = string.IsNullOrEmpty(_settings.OverlayTextPosition) ? "TopLeft" : _settings.OverlayTextPosition;
-                if (!overlays.ContainsKey(pos)) overlays[pos] = new System.Collections.Generic.List<string>();
-                overlays[pos].Add(_settings.OverlayText);
-            }
-
-            foreach (var kvp in overlays)
-            {
-                string combinedText = string.Join("\n", kvp.Value);
-                DrawOverlayBlock(bmp, bounds, kvp.Key, combinedText);
-            }
-        }
-
-        private void DrawOverlayBlock(Bitmap bmp, Rectangle bounds, string position, string text)
-        {
-            using (Graphics g = Graphics.FromImage(bmp))
-            {
-                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-
-                using (Font font = new Font("Segoe UI", 16, System.Drawing.FontStyle.Bold))
-                {
-                    SizeF textSize = g.MeasureString(text, font);
-                    float padding = 12;
-                    PointF pt = GetOverlayPosition(textSize, bounds, position, padding);
-
-                    using (System.Drawing.SolidBrush brush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(160, 0, 0, 0)))
-                    {
-                        g.FillRectangle(brush, pt.X, pt.Y, textSize.Width + padding * 2, textSize.Height + padding * 2);
-                    }
-
-                    using (System.Drawing.SolidBrush textBrush = new System.Drawing.SolidBrush(System.Drawing.Color.White))
-                    {
-                        g.DrawString(text, font, textBrush, pt.X + padding, pt.Y + padding);
-                    }
-                }
-            }
+            OverlayRenderer.Apply(bmp, _settings, bounds);
         }
 
         private void SetComboBoxByTag(ComboBox cb, string tagValue)
@@ -1150,27 +788,6 @@ namespace PowerShot
                     break;
                 }
             }
-        }
-
-        private string GetSystemInfoString()
-        {
-            try
-            {
-                string host = Dns.GetHostName();
-                string domain = IPGlobalProperties.GetIPGlobalProperties().DomainName;
-                string fqdn = string.IsNullOrEmpty(domain) ? host : host + "." + domain;
-                string user = Environment.UserDomainName + "\\" + Environment.UserName;
-                
-                var ips = Dns.GetHostAddresses(host)
-                    .Where(ip => ip.AddressFamily == AddressFamily.InterNetwork)
-                    .Select(ip => ip.ToString())
-                    .ToList();
-                
-                string ipStr = ips.Count > 0 ? string.Join(", ", ips.ToArray()) : "N/A";
-
-                return string.Format("Host: {0} | User: {1} | IP: {2}", fqdn, user, ipStr);
-            }
-            catch { return "System Info Error"; }
         }
 
         // --- Folder Creation and Deletion ---
@@ -1299,7 +916,7 @@ namespace PowerShot
 
         private void Window_Closing(object sender, CancelEventArgs e)
         {
-            // Save session state on close
+            if (_previewRedrawTimer != null) _previewRedrawTimer.Stop();
             _session.LastPrefix = _prefixTextBox.Text;
             _session.LastDirectory = _currentDirectory;
         }
@@ -1362,6 +979,25 @@ namespace PowerShot
         }
 
         // --- Helpers ---
+
+        private void SaveSettings()
+        {
+            SettingsManager.Save(_settingsPath, _settings);
+        }
+
+        private static Rectangle ClampCropRect(int x, int y, int w, int h, int srcW, int srcH)
+        {
+            const int MinSize = 10;
+            if (x < 0) x = 0;
+            if (y < 0) y = 0;
+            if (x > srcW - MinSize) x = srcW - MinSize;
+            if (y > srcH - MinSize) y = srcH - MinSize;
+            if (w < MinSize) w = MinSize;
+            if (h < MinSize) h = MinSize;
+            if (x + w > srcW) w = srcW - x;
+            if (y + h > srcH) h = srcH - y;
+            return new Rectangle(x, y, w, h);
+        }
 
         private static string NormalizePath(string path)
         {
