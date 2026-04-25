@@ -225,15 +225,15 @@ namespace PowerShot
             var items = new List<ExplorerItem>();
             try
             {
-                foreach (var dir in Directory.GetDirectories(_currentDirectory).OrderBy(d => d, StringComparer.OrdinalIgnoreCase))
+                foreach (var dir in new DirectoryInfo(_currentDirectory).GetDirectories().OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
                 {
                     items.Add(new ExplorerItem
                     {
-                        Name = Path.GetFileName(dir),
-                        FullPath = dir,
+                        Name = dir.Name,
+                        FullPath = dir.FullName,
                         IsDirectory = true,
-                        LastModified = Directory.GetLastWriteTime(dir),
-                        Icon = IconHelper.GetIcon(dir, true)
+                        LastModified = dir.LastWriteTime,
+                        Icon = IconHelper.GetIcon(dir.FullName, true)
                     });
                 }
 
