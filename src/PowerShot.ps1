@@ -1,5 +1,5 @@
 # ============================================================
-# PowerShot v2.0 - PowerShell Launcher & Session Manager
+# PowerShot v3.0 - PowerShell Launcher & Session Manager
 # ============================================================
 # WPF hybrid architecture: XAML + C# compiled in-memory via Add-Type
 # Requires STA thread (launched via PowerShot.bat with -STA flag)
@@ -15,17 +15,16 @@ Add-Type -AssemblyName System.Windows.Forms
 
 # --- Resolve Paths ---
 $scriptPath = Split-Path $MyInvocation.MyCommand.Path -Parent
-$csPath     = Join-Path $scriptPath "PowerShotLogic.cs"
 
 # --- Recompile Guard: only Add-Type if not already loaded ---
 if (-not ('PowerShot.Program' -as [type])) {
-    if (-not (Test-Path $csPath)) {
-        Write-Host "ERROR: PowerShotLogic.cs not found: $csPath" -ForegroundColor Red
+    $csFiles = (Get-ChildItem -Path $scriptPath -Recurse -Filter *.cs | Where-Object { $_.Name -notmatch "ViewerLogic.cs" -and $_.Name -notmatch "PowerShotLogic.cs" -and $_.FullName -notmatch "ViewerController|ViewerModels" }).FullName
+
+    if (-not $csFiles -or $csFiles.Count -eq 0) {
+        Write-Host "ERROR: No C# source files found in $scriptPath" -ForegroundColor Red
         Read-Host "Press Enter to exit"
         exit 1
     }
-
-    $csCode = [System.IO.File]::ReadAllText($csPath, [System.Text.Encoding]::UTF8)
 
     # Referenced assemblies for WPF + Drawing + Interop
     $refs = @(
@@ -42,7 +41,7 @@ if (-not ('PowerShot.Program' -as [type])) {
     )
 
     try {
-        Add-Type -TypeDefinition $csCode -ReferencedAssemblies $refs -ErrorAction Stop
+        Add-Type -Path $csFiles -ReferencedAssemblies $refs -ErrorAction Stop
     }
     catch {
         Write-Host "ERROR: C# Compilation Failed:" -ForegroundColor Red

@@ -2,38 +2,12 @@ using System;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 
 namespace PowerShot
 {
-    [DataContract]
-    public class FolderNode
-    {
-        [DataMember] public string Name { get; set; }
-        [DataMember] public string Path { get; set; }
-        [DataMember] public List<FolderNode> Children { get; set; }
-        [DataMember] public List<FileItem> Files { get; set; }
-
-        public FolderNode()
-        {
-            Children = new List<FolderNode>();
-            Files = new List<FileItem>();
-        }
-    }
-
-    [DataContract]
-    public class FileItem
-    {
-        [DataMember] public string Name { get; set; }
-        [DataMember] public string Path { get; set; }
-        [DataMember] public string Date { get; set; }
-        [DataMember] public long Size { get; set; }
-    }
-
-    public static class ViewerLogic
+    public static class ViewerController
     {
         public static void Run(string projectDir)
         {
@@ -74,7 +48,7 @@ namespace PowerShot
                     json = Encoding.UTF8.GetString(ms.ToArray());
                 }
                 
-                string templatePath = Path.Combine(srcDir, "viewer_template.html");
+                string templatePath = Path.Combine(srcDir, "Views", "viewer_template.html");
                 if (!File.Exists(templatePath))
                 {
                     Console.WriteLine("Template not found: " + templatePath);
@@ -138,3 +112,4 @@ namespace PowerShot
         }
     }
 }
+
