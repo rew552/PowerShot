@@ -1,10 +1,4 @@
 .gitignore export-ignore
 .gitattributes export-ignore
 tests/ export-ignore
-<<<<<<< HEAD
 docs/ export-ignore
-CLAUDE.md export-ignore
-GEMINI.md export-ignore
-=======
-docs/ export-ignore
->>>>>>> dbfb0961e2fb3c8d29734b7129b2a2718eaafece
