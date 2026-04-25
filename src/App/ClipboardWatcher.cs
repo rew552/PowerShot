@@ -219,7 +219,8 @@ namespace PowerShot
             using (var sha256 = SHA256.Create())
             {
                 bitmap.Save(ms, ImageFormat.Bmp);
-                byte[] hashBytes = sha256.ComputeHash(ms.ToArray());
+                ms.Position = 0;
+                byte[] hashBytes = sha256.ComputeHash(ms);
                 return BitConverter.ToString(hashBytes).Replace("-", "");
             }
         }
