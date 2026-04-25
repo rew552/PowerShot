@@ -1,4 +1,4 @@
-﻿﻿using System.IO;
+﻿using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 
@@ -14,7 +14,7 @@ namespace PowerShot
         [DataMember(Order = 6)] public string SysInfoPosition { get; set; }
         [DataMember(Order = 7)] public string OverlayText { get; set; }
         [DataMember(Order = 8)] public string OverlayTextPosition { get; set; }
-        [DataMember(Order = 9)] public int ClipboardPollingInterval { get; set; }
+
         [DataMember(Order = 11)] public string TimestampTemplate { get; set; }
         [DataMember(Order = 12)] public string HotkeyMonitorCapture { get; set; }
         [DataMember(Order = 13)] public bool CropEnabled { get; set; }
@@ -35,7 +35,7 @@ namespace PowerShot
                 SysInfoPosition = "TopLeft",
                 OverlayText = "",
                 OverlayTextPosition = "TopLeft",
-                ClipboardPollingInterval = 200,
+
                 TimestampTemplate = "yyyyMMdd-HHmmss",
                 HotkeyMonitorCapture = "Shift+PrintScreen",
                 CropEnabled = false,

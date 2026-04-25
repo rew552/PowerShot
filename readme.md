@@ -92,8 +92,9 @@ PowerShot/
 
 ---
 
-## 📝 リリースノート
+## 📝 ドキュメント
 
-[v2.0 からの変更点はこちら](./RELEASE_NOTES.md)
+- [リリースノート (v2.0 からの変更点)](./docs/RELEASE_NOTES.md)
+- [技術仕様書 (内部アーキテクチャ)](./docs/ARCHITECTURE.md)
 
 ---

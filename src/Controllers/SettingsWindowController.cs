@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -19,7 +19,7 @@ namespace PowerShot
         private TextBlock _timestampPreviewLabel;
         private Slider _jpegQualitySlider;
         private TextBlock _jpegQualityValueLabel;
-        private TextBox _pollingIntervalTextBox;
+
         private Button _okButton;
         private Button _cancelButton;
         private Button _closeToolButton;
@@ -50,7 +50,7 @@ namespace PowerShot
             _timestampPreviewLabel = (TextBlock)_window.FindName("TimestampPreviewLabel");
             _jpegQualitySlider = (Slider)_window.FindName("JpegQualitySlider");
             _jpegQualityValueLabel = (TextBlock)_window.FindName("JpegQualityValueLabel");
-            _pollingIntervalTextBox = (TextBox)_window.FindName("PollingIntervalTextBox");
+
             _okButton = (Button)_window.FindName("OkButton");
             _cancelButton = (Button)_window.FindName("CancelButton");
             _closeToolButton = (Button)_window.FindName("CloseToolButton");
@@ -79,7 +79,7 @@ namespace PowerShot
             _jpegQualitySlider.Value = _settings.JpegQuality;
             _jpegQualityValueLabel.Text = _settings.JpegQuality.ToString();
             
-            _pollingIntervalTextBox.Text = _settings.ClipboardPollingInterval.ToString();
+
 
             // Select matching timestamp template
             foreach (ComboBoxItem item in _timestampTemplateComboBox.Items)
@@ -134,9 +134,7 @@ namespace PowerShot
 
             _settings.JpegQuality = (int)_jpegQualitySlider.Value;
             
-            int interval;
-            if (int.TryParse(_pollingIntervalTextBox.Text, out interval))
-                _settings.ClipboardPollingInterval = interval;
+
 
             var tsItem = _timestampTemplateComboBox.SelectedItem as ComboBoxItem;
             if (tsItem != null)

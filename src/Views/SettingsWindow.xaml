@@ -228,9 +228,7 @@
                         <TextBlock x:Name="JpegQualityValueLabel" Grid.Column="1" Foreground="#F1F1F1" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <!-- Polling Interval -->
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="監視間隔(ms)" Style="{StaticResource FormLabel}"/>
-                    <TextBox x:Name="PollingIntervalTextBox" Grid.Row="4" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="0,0,0,16" Width="80" HorizontalAlignment="Left"/>
+
                 </Grid>
             </ScrollViewer>
 
