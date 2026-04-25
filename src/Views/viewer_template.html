@@ -268,7 +268,11 @@
             const item = document.createElement('div');
             item.className = 'folder-item' + (depth === 0 ? ' root-folder' : '');
             if (depth > 0) item.style.paddingLeft = `${16 + depth * 16}px`;
-            item.innerHTML = `<span>${depth === 0 ? '🏠' : '📁'}</span> ${node.Name}`;
+
+            const iconSpan = document.createElement('span');
+            iconSpan.textContent = depth === 0 ? '🏠' : '📁';
+            item.appendChild(iconSpan);
+            item.appendChild(document.createTextNode(' ' + node.Name));
             
             item.onclick = () => {
                 document.querySelectorAll('.folder-item').forEach(el => el.classList.remove('selected'));
@@ -321,13 +325,28 @@
             filtered.forEach((file, index) => {
                 const card = document.createElement('div');
                 card.className = 'thumb-card';
-                card.innerHTML = `
-                    <img src="${file.Path}" class="thumb-img">
-                    <div class="thumb-info">
-                        <div class="thumb-name" title="${file.Name}">${file.Name}</div>
-                        <div class="thumb-date">${file.Date} - ${formatBytes(file.Size)}</div>
-                    </div>
-                `;
+
+                const img = document.createElement('img');
+                img.className = 'thumb-img';
+                img.src = file.Path;
+                card.appendChild(img);
+
+                const info = document.createElement('div');
+                info.className = 'thumb-info';
+
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'thumb-name';
+                nameDiv.title = file.Name;
+                nameDiv.textContent = file.Name;
+                info.appendChild(nameDiv);
+
+                const dateDiv = document.createElement('div');
+                dateDiv.className = 'thumb-date';
+                dateDiv.textContent = `${file.Date} - ${formatBytes(file.Size)}`;
+                info.appendChild(dateDiv);
+
+                card.appendChild(info);
+
                 card.onclick = () => openLightbox(filtered, index);
                 gallery.appendChild(card);
             });
