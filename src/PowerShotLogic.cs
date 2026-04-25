@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -16,9 +15,7 @@ using System.Windows.Interop;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Threading;
 using System.Net;
-using System.Net.NetworkInformation;
 using System.Net.Sockets;
 
 namespace PowerShot
@@ -903,7 +900,7 @@ namespace PowerShot
             try
             {
                 string host = Dns.GetHostName();
-                string domain = IPGlobalProperties.GetIPGlobalProperties().DomainName;
+                string domain = System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties().DomainName;
                 string fqdn = string.IsNullOrEmpty(domain) ? host : host + "." + domain;
                 string user = Environment.UserDomainName + "\\" + Environment.UserName;
                 
