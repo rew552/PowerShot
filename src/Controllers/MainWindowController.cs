@@ -79,8 +79,9 @@ namespace PowerShot
         {
             if (!string.IsNullOrEmpty(_session.LastDirectory) && Directory.Exists(_session.LastDirectory))
             {
-                string normLast = NormalizePath(_session.LastDirectory);
-                if (normLast.StartsWith(_rootBoundary, StringComparison.OrdinalIgnoreCase))
+                string normLast = NormalizePath(_session.LastDirectory) + Path.DirectorySeparatorChar;
+                string normRoot = _rootBoundary + Path.DirectorySeparatorChar;
+                if (normLast.StartsWith(normRoot, StringComparison.OrdinalIgnoreCase))
                     return _session.LastDirectory;
             }
             return rootPath;
@@ -187,8 +188,9 @@ namespace PowerShot
 
         private void NavigateToDirectory(string path)
         {
-            string normalizedTarget = NormalizePath(path);
-            if (!normalizedTarget.StartsWith(_rootBoundary, StringComparison.OrdinalIgnoreCase)) return;
+            string normalizedTarget = NormalizePath(path) + Path.DirectorySeparatorChar;
+            string normalizedRoot = _rootBoundary + Path.DirectorySeparatorChar;
+            if (!normalizedTarget.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase)) return;
             if (!Directory.Exists(path)) return;
 
             _currentDirectory = path;
@@ -479,7 +481,7 @@ namespace PowerShot
             _rootBoundary = NormalizePath(newRoot);
 
             if (!Directory.Exists(_currentDirectory) ||
-                !NormalizePath(_currentDirectory).StartsWith(_rootBoundary, StringComparison.OrdinalIgnoreCase))
+                !(NormalizePath(_currentDirectory) + Path.DirectorySeparatorChar).StartsWith(_rootBoundary + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             {
                 NavigateToDirectory(newRoot);
             }
