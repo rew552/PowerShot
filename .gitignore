@@ -1,0 +1,23 @@
+# PowerShot Generated Files
+src/settings.json
+src/settings.json.tmp
+src/.powershot_viewer.html
+
+# Default Output Folder
+Screenshots/
+
+# Windows
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# IDEs
+.vscode/
+.vs/
+*.user
+*.suo
+
+# System
+*.tmp
+*.bak
+*.log

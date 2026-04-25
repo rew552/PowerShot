@@ -16,7 +16,6 @@ Add-Type -AssemblyName System.Windows.Forms
 # --- Resolve Paths ---
 $scriptPath = Split-Path $MyInvocation.MyCommand.Path -Parent
 $csPath     = Join-Path $scriptPath "PowerShotLogic.cs"
-$saveDir    = Join-Path $scriptPath "..\Screenshots"
 
 # --- Recompile Guard: only Add-Type if not already loaded ---
 if (-not ('PowerShot.Program' -as [type])) {
@@ -37,6 +36,7 @@ if (-not ('PowerShot.Program' -as [type])) {
         "System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"
         "System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
         "System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+        "System.Runtime.Serialization, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
         "System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
         "System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
     )
@@ -59,4 +59,4 @@ else {
 }
 
 # --- Launch Application ---
-[PowerShot.Program]::Run($scriptPath, $saveDir)
+[PowerShot.Program]::Run($scriptPath)

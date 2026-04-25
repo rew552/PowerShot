@@ -19,9 +19,100 @@ using System.Windows.Threading;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
 
 namespace PowerShot
 {
+    // ============================================================
+    // App Settings
+    // ============================================================
+    [DataContract]
+    public class AppSettings
+    {
+        [DataMember(Order = 1)] public string SaveFolder { get; set; }
+
+        [DataMember(Order = 4)] public int JpegQuality { get; set; }
+        [DataMember(Order = 5)] public bool EmbedSysInfo { get; set; }
+        [DataMember(Order = 6)] public string SysInfoPosition { get; set; }
+        [DataMember(Order = 7)] public string OverlayText { get; set; }
+        [DataMember(Order = 8)] public string OverlayTextPosition { get; set; }
+        [DataMember(Order = 9)] public int ClipboardPollingInterval { get; set; }
+        [DataMember(Order = 11)] public string TimestampTemplate { get; set; }
+        [DataMember(Order = 12)] public string HotkeyMonitorCapture { get; set; }
+        [DataMember(Order = 13)] public bool CropEnabled { get; set; }
+        [DataMember(Order = 14)] public int CropX { get; set; }
+        [DataMember(Order = 15)] public int CropY { get; set; }
+        [DataMember(Order = 16)] public int CropWidth { get; set; }
+        [DataMember(Order = 17)] public int CropHeight { get; set; }
+        [DataMember(Order = 18)] public bool OverlayEnabled { get; set; }
+
+        public static AppSettings Default()
+        {
+            return new AppSettings
+            {
+                SaveFolder = @".\Screenshots",
+
+                JpegQuality = 80,
+                EmbedSysInfo = false,
+                SysInfoPosition = "TopLeft",
+                OverlayText = "",
+                OverlayTextPosition = "TopLeft",
+                ClipboardPollingInterval = 200,
+                TimestampTemplate = "yyyyMMdd-HHmmss",
+                HotkeyMonitorCapture = "Shift+PrintScreen",
+                CropEnabled = false,
+                CropX = 0,
+                CropY = 0,
+                CropWidth = 0,
+                CropHeight = 0,
+                OverlayEnabled = false
+            };
+        }
+    }
+
+    internal static class SettingsManager
+    {
+        public static AppSettings Load(string path)
+        {
+            if (!File.Exists(path))
+            {
+                var def = AppSettings.Default();
+                Save(path, def);
+                return def;
+            }
+            try
+            {
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+                {
+                    var serializer = new DataContractJsonSerializer(typeof(AppSettings));
+                    var settings = (AppSettings)serializer.ReadObject(fs);
+                    if (string.IsNullOrEmpty(settings.TimestampTemplate)) settings.TimestampTemplate = "yyyyMMdd-HHmmss";
+                    if (settings.JpegQuality <= 0) settings.JpegQuality = 80;
+                    if (string.IsNullOrEmpty(settings.SaveFolder)) settings.SaveFolder = @".\Screenshots";
+                    return settings;
+                }
+            }
+            catch
+            {
+                return AppSettings.Default();
+            }
+        }
+
+        public static void Save(string path, AppSettings settings)
+        {
+            try
+            {
+                using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write))
+                {
+                    var serializer = new DataContractJsonSerializer(typeof(AppSettings));
+                    serializer.WriteObject(fs, settings);
+                }
+            }
+            catch { }
+        }
+    }
+
     // ============================================================
     // Win32 Native Methods
     // ============================================================
@@ -230,13 +321,26 @@ namespace PowerShot
         /// <summary>
         /// Generates the filename based on prefix, optionName, sequence, and format.
         /// </summary>
-        public static string GenerateFileName(string prefix, string optionName, string seqStr, string format)
+        public static string GenerateFileName(string prefix, string optionName, string seqStr, string format, string timestampTemplate = "yyyyMMdd-HHmmss")
         {
             string ext = format.ToLowerInvariant();
 
             if (string.IsNullOrWhiteSpace(prefix) && string.IsNullOrWhiteSpace(optionName))
             {
-                return string.Format("SS_{0}.{1}", DateTime.Now.ToString("yyyyMMdd-HHmmss"), ext);
+                string middle;
+                if (timestampTemplate == "SEQ")
+                {
+                    middle = seqStr;
+                }
+                else if (timestampTemplate == "yyyyMMdd_SEQ")
+                {
+                    middle = DateTime.Now.ToString("yyyyMMdd") + "_" + seqStr;
+                }
+                else
+                {
+                    middle = DateTime.Now.ToString(timestampTemplate);
+                }
+                return string.Format("SS_{0}.{1}", middle, ext);
             }
 
             string baseName = prefix;
@@ -304,6 +408,157 @@ namespace PowerShot
     }
 
     // ============================================================
+    // SettingsWindow Logic
+    // ============================================================
+    public class SettingsWindowController
+    {
+        private Window _window;
+        private AppSettings _settings;
+        private string _settingsPath;
+
+        private TextBox _saveFolderTextBox;
+        private Button _browseFolderButton;
+
+        private ComboBox _timestampTemplateComboBox;
+        private TextBlock _timestampPreviewLabel;
+        private Slider _jpegQualitySlider;
+        private TextBlock _jpegQualityValueLabel;
+        private TextBox _pollingIntervalTextBox;
+        private Button _okButton;
+        private Button _cancelButton;
+        private Button _closeToolButton;
+        private Grid _titleBarGrid;
+        
+        private int _previewDigits;
+        public bool SettingsChanged { get; private set; }
+
+        public SettingsWindowController(Window window, AppSettings settings, string settingsPath, int previewDigits)
+        {
+            _window = window;
+            _settings = settings;
+            _settingsPath = settingsPath;
+            _previewDigits = previewDigits > 0 ? previewDigits : 4;
+            SettingsChanged = false;
+
+            FindControls();
+            BindEvents();
+            Initialize();
+        }
+
+        private void FindControls()
+        {
+            _saveFolderTextBox = (TextBox)_window.FindName("SaveFolderTextBox");
+            _browseFolderButton = (Button)_window.FindName("BrowseFolderButton");
+
+            _timestampTemplateComboBox = (ComboBox)_window.FindName("TimestampTemplateComboBox");
+            _timestampPreviewLabel = (TextBlock)_window.FindName("TimestampPreviewLabel");
+            _jpegQualitySlider = (Slider)_window.FindName("JpegQualitySlider");
+            _jpegQualityValueLabel = (TextBlock)_window.FindName("JpegQualityValueLabel");
+            _pollingIntervalTextBox = (TextBox)_window.FindName("PollingIntervalTextBox");
+            _okButton = (Button)_window.FindName("OkButton");
+            _cancelButton = (Button)_window.FindName("CancelButton");
+            _closeToolButton = (Button)_window.FindName("CloseToolButton");
+            _titleBarGrid = (Grid)_window.FindName("TitleBarGrid");
+        }
+
+        private void BindEvents()
+        {
+            _titleBarGrid.MouseDown += (s, e) => { if (e.ChangedButton == MouseButton.Left) _window.DragMove(); };
+            _closeToolButton.Click += (s, e) => _window.Close();
+            
+            _cancelButton.Click += (s, e) => _window.Close();
+            _okButton.Click += OkButton_Click;
+            _browseFolderButton.Click += BrowseFolderButton_Click;
+
+            _jpegQualitySlider.ValueChanged += (s, e) => _jpegQualityValueLabel.Text = ((int)e.NewValue).ToString();
+            
+            _timestampTemplateComboBox.SelectionChanged += (s, e) => UpdateTimestampPreview();
+        }
+
+        private void Initialize()
+        {
+            _saveFolderTextBox.Text = _settings.SaveFolder;
+
+            
+            _jpegQualitySlider.Value = _settings.JpegQuality;
+            _jpegQualityValueLabel.Text = _settings.JpegQuality.ToString();
+            
+            _pollingIntervalTextBox.Text = _settings.ClipboardPollingInterval.ToString();
+
+            // Select matching timestamp template
+            foreach (ComboBoxItem item in _timestampTemplateComboBox.Items)
+            {
+                if ((string)item.Tag == _settings.TimestampTemplate)
+                {
+                    _timestampTemplateComboBox.SelectedItem = item;
+                    break;
+                }
+            }
+        }
+
+        private void UpdateTimestampPreview()
+        {
+            var item = _timestampTemplateComboBox.SelectedItem as ComboBoxItem;
+            if (item != null)
+            {
+                string template = (string)item.Tag;
+                if (template == "yyyyMMdd_SEQ")
+                {
+                    string seqStr = 1.ToString("D" + _previewDigits);
+                    _timestampPreviewLabel.Text = DateTime.Now.ToString("yyyyMMdd") + "_" + seqStr;
+                }
+                else
+                {
+                    try { _timestampPreviewLabel.Text = DateTime.Now.ToString(template); }
+                    catch { _timestampPreviewLabel.Text = "Invalid Format"; }
+                }
+            }
+        }
+
+        private void BrowseFolderButton_Click(object sender, RoutedEventArgs e)
+        {
+            using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
+            {
+                dialog.Description = "保存先フォルダを選択してください";
+                if (!string.IsNullOrEmpty(_saveFolderTextBox.Text))
+                {
+                    try { dialog.SelectedPath = Path.GetFullPath(Path.Combine(_settingsPath, "..", _saveFolderTextBox.Text)); } catch { }
+                }
+
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    _saveFolderTextBox.Text = dialog.SelectedPath;
+                }
+            }
+        }
+
+        private void OkButton_Click(object sender, RoutedEventArgs e)
+        {
+            _settings.SaveFolder = _saveFolderTextBox.Text;
+
+            _settings.JpegQuality = (int)_jpegQualitySlider.Value;
+            
+            int interval;
+            if (int.TryParse(_pollingIntervalTextBox.Text, out interval))
+                _settings.ClipboardPollingInterval = interval;
+
+            var tsItem = _timestampTemplateComboBox.SelectedItem as ComboBoxItem;
+            if (tsItem != null)
+                _settings.TimestampTemplate = (string)tsItem.Tag;
+
+            SettingsManager.Save(_settingsPath, _settings);
+            SettingsChanged = true;
+            _window.Close();
+        }
+
+        public bool ShowDialog()
+        {
+            _window.ShowDialog();
+            return SettingsChanged;
+        }
+    }
+
+    // ============================================================
     // MainWindow Logic (CodeBehind bound dynamically)
     // ============================================================
     public class MainWindowController
@@ -314,6 +569,7 @@ namespace PowerShot
         private string _scriptDir;
         private string _currentDirectory;
         private SessionState _session;
+        private AppSettings _settings;
         private bool _suppressSequenceUpdate = false;
 
         // UI Controls
@@ -327,24 +583,45 @@ namespace PowerShot
         private TextBlock _fileNamePreview;
         private Button _saveButton;
         private ComboBox _digitsComboBox;
-        private CheckBox _systemInfoToggle;
         private Border _newFolderPanel;
         private TextBox _newFolderNameTextBox;
         private Button _createFolderButton;
         private Button _cancelFolderButton;
+        
+        // Crop Controls
+        private Canvas _cropCanvas;
+        private System.Windows.Shapes.Rectangle _cropSelectionRect;
+        private CheckBox _cropEnableCheckBox;
+        private TextBox _cropXTextBox;
+        private TextBox _cropYTextBox;
+        private TextBox _cropWidthTextBox;
+        private TextBox _cropHeightTextBox;
+        private Button _resetCropButton;
+        
+        // Overlay Controls
+        private CheckBox _overlayEnableCheckBox;
+        private CheckBox _embedSysInfoCheckBox;
+        private ComboBox _sysInfoPositionComboBox;
+        private TextBox _overlayTextBox;
+        private ComboBox _overlayTextPositionComboBox;
+        private Button _updatePreviewButton;
         private Button _newFolderButton;
         private Button _deleteButton;
         private Grid _titleBarGrid;
         private Button _closeToolButton;
+        private Button _settingsToolButton;
 
         public bool Saved { get; private set; }
 
-        public MainWindowController(Window window, Bitmap capturedBitmap, string scriptDir, string rootBoundary, SessionState session)
+        public MainWindowController(Window window, Bitmap capturedBitmap, string scriptDir, AppSettings settings, SessionState session)
         {
             _window = window;
             _capturedBitmap = capturedBitmap;
             _scriptDir = scriptDir;
-            _rootBoundary = NormalizePath(rootBoundary);
+            _settings = settings;
+            
+            string rootPath = Path.GetFullPath(Path.Combine(scriptDir, settings.SaveFolder));
+            _rootBoundary = NormalizePath(rootPath);
             _session = session;
             Saved = false;
 
@@ -358,12 +635,12 @@ namespace PowerShot
                 }
                 else
                 {
-                    _currentDirectory = rootBoundary;
+                    _currentDirectory = rootPath;
                 }
             }
             else
             {
-                _currentDirectory = rootBoundary;
+                _currentDirectory = rootPath;
             }
 
             FindControls();
@@ -383,7 +660,6 @@ namespace PowerShot
             _digitsComboBox = (ComboBox)_window.FindName("DigitsComboBox");
             _formatComboBox = (ComboBox)_window.FindName("FormatComboBox");
             _fileNamePreview = (TextBlock)_window.FindName("FileNamePreview");
-            _systemInfoToggle = (CheckBox)_window.FindName("SystemInfoToggle");
             _newFolderPanel = (Border)_window.FindName("NewFolderPanel");
             _newFolderNameTextBox = (TextBox)_window.FindName("NewFolderNameTextBox");
             _createFolderButton = (Button)_window.FindName("CreateFolderButton");
@@ -392,6 +668,23 @@ namespace PowerShot
             _deleteButton = (Button)_window.FindName("DeleteButton");
             _titleBarGrid = (Grid)_window.FindName("TitleBarGrid");
             _closeToolButton = (Button)_window.FindName("CloseToolButton");
+            _settingsToolButton = (Button)_window.FindName("SettingsToolButton");
+            
+            _cropCanvas = (Canvas)_window.FindName("CropCanvas");
+            _cropSelectionRect = (System.Windows.Shapes.Rectangle)_window.FindName("CropSelectionRect");
+            _cropEnableCheckBox = (CheckBox)_window.FindName("CropEnableCheckBox");
+            _cropXTextBox = (TextBox)_window.FindName("CropXTextBox");
+            _cropYTextBox = (TextBox)_window.FindName("CropYTextBox");
+            _cropWidthTextBox = (TextBox)_window.FindName("CropWidthTextBox");
+            _cropHeightTextBox = (TextBox)_window.FindName("CropHeightTextBox");
+            _resetCropButton = (Button)_window.FindName("ResetCropButton");
+            
+            _overlayEnableCheckBox = (CheckBox)_window.FindName("OverlayEnableCheckBox");
+            _embedSysInfoCheckBox = (CheckBox)_window.FindName("EmbedSysInfoCheckBox");
+            _sysInfoPositionComboBox = (ComboBox)_window.FindName("SysInfoPositionComboBox");
+            _overlayTextBox = (TextBox)_window.FindName("OverlayTextBox");
+            _overlayTextPositionComboBox = (ComboBox)_window.FindName("OverlayTextPositionComboBox");
+            _updatePreviewButton = (Button)_window.FindName("UpdatePreviewButton");
         }
 
         private void BindEvents()
@@ -418,6 +711,10 @@ namespace PowerShot
             {
                 _closeToolButton.Click += (s, e) => _window.Close();
             }
+            if (_settingsToolButton != null)
+            {
+                _settingsToolButton.Click += SettingsToolButton_Click;
+            }
             _formatComboBox.SelectionChanged += Format_SelectionChanged;
             if (_digitsComboBox != null) _digitsComboBox.SelectionChanged += DigitsComboBox_SelectionChanged;
 
@@ -433,10 +730,28 @@ namespace PowerShot
             // Register pasting handler for sequence
             DataObject.AddPastingHandler(_sequenceTextBox, SequenceTextBox_Pasting);
 
-            if (_systemInfoToggle != null)
+            // Crop Events
+            if (_cropCanvas != null)
             {
-                _systemInfoToggle.Click += SystemInfoToggle_Click;
+                _cropCanvas.MouseDown += CropCanvas_MouseDown;
+                _cropCanvas.MouseMove += CropCanvas_MouseMove;
+                _cropCanvas.MouseUp += CropCanvas_MouseUp;
+                _cropCanvas.MouseLeave += CropCanvas_MouseLeave;
             }
+            if (_cropEnableCheckBox != null) _cropEnableCheckBox.Click += CropSettings_Changed;
+            if (_resetCropButton != null) _resetCropButton.Click += ResetCropButton_Click;
+            
+            if (_cropXTextBox != null) _cropXTextBox.TextChanged += CropTextBox_TextChanged;
+            if (_cropYTextBox != null) _cropYTextBox.TextChanged += CropTextBox_TextChanged;
+            if (_cropWidthTextBox != null) _cropWidthTextBox.TextChanged += CropTextBox_TextChanged;
+            if (_cropHeightTextBox != null) _cropHeightTextBox.TextChanged += CropTextBox_TextChanged;
+
+            if (_overlayEnableCheckBox != null) _overlayEnableCheckBox.Click += OverlaySettings_Changed;
+            if (_embedSysInfoCheckBox != null) _embedSysInfoCheckBox.Click += OverlaySettings_Changed;
+            if (_sysInfoPositionComboBox != null) _sysInfoPositionComboBox.SelectionChanged += OverlaySettings_Changed;
+            if (_overlayTextPositionComboBox != null) _overlayTextPositionComboBox.SelectionChanged += OverlaySettings_Changed;
+            
+            if (_updatePreviewButton != null) _updatePreviewButton.Click += UpdatePreviewButton_Click;
         }
 
         private void Initialize()
@@ -444,7 +759,12 @@ namespace PowerShot
             // Set preview image
             if (_capturedBitmap != null)
             {
-                _previewImage.Source = ConvertBitmapToImageSource(_capturedBitmap);
+                if (_cropCanvas != null)
+                {
+                    _cropCanvas.Width = _capturedBitmap.Width;
+                    _cropCanvas.Height = _capturedBitmap.Height;
+                }
+                RedrawPreview();
             }
 
             // Restore session state
@@ -466,10 +786,21 @@ namespace PowerShot
                 UpdateInputInterlock();
                 UpdateSequence();
             }
-            // Restore system info visibility (embedding state)
-            if (_systemInfoToggle != null)
+
+            if (_settings != null)
             {
-                _systemInfoToggle.IsChecked = _session.IsSystemInfoVisible;
+                if (_cropEnableCheckBox != null) _cropEnableCheckBox.IsChecked = _settings.CropEnabled;
+                if (_cropCanvas != null) _cropCanvas.Visibility = _settings.CropEnabled ? Visibility.Visible : Visibility.Collapsed;
+                
+                SyncCropTextBoxesFromSettings();
+                SyncCropRectFromSettings();
+
+                if (_overlayEnableCheckBox != null) _overlayEnableCheckBox.IsChecked = _settings.OverlayEnabled;
+                if (_embedSysInfoCheckBox != null) _embedSysInfoCheckBox.IsChecked = _settings.EmbedSysInfo;
+                if (_overlayTextBox != null) _overlayTextBox.Text = _settings.OverlayText;
+                
+                SetComboBoxByTag(_sysInfoPositionComboBox, _settings.SysInfoPosition);
+                SetComboBoxByTag(_overlayTextPositionComboBox, _settings.OverlayTextPosition);
             }
 
             if (_formatComboBox != null)
@@ -591,15 +922,23 @@ namespace PowerShot
             {
                 if (digits == -1) // "日時" case
                 {
-                    _sequenceTextBox.MaxLength = 20;
-                    _sequenceTextBox.Text = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+                    _sequenceTextBox.MaxLength = 50;
+                    _sequenceTextBox.Text = DateTime.Now.ToString(_settings.TimestampTemplate);
                 }
                 else
                 {
                     int maxLen = digits > 0 ? digits : 4;
                     _sequenceTextBox.MaxLength = maxLen;
+                    
+                    string effectivePrefix = _prefixTextBox.Text;
+                    if (string.IsNullOrWhiteSpace(effectivePrefix))
+                    {
+                        if (_settings.TimestampTemplate == "SEQ") effectivePrefix = "SS";
+                        else if (_settings.TimestampTemplate == "yyyyMMdd_SEQ") effectivePrefix = "SS_" + DateTime.Now.ToString("yyyyMMdd");
+                    }
+                    
                     int seq = SequenceManager.GetNextSequence(
-                        _currentDirectory, _prefixTextBox.Text, "");
+                        _currentDirectory, effectivePrefix, "");
                     _sequenceTextBox.Text = seq.ToString("D" + maxLen);
                 }
             }
@@ -624,7 +963,7 @@ namespace PowerShot
 
             string format = GetSelectedFormat();
             _fileNamePreview.Text = FileManager.GenerateFileName(
-                _prefixTextBox.Text, "", _sequenceTextBox.Text, format);
+                _prefixTextBox.Text, "", _sequenceTextBox.Text, format, _settings.TimestampTemplate);
         }
 
         private string GetSelectedFormat()
@@ -634,6 +973,45 @@ namespace PowerShot
         }
 
         // --- Event Handlers ---
+
+        private void SettingsToolButton_Click(object sender, RoutedEventArgs e)
+        {
+            string xamlPath = Path.Combine(_scriptDir, "SettingsWindow.xaml");
+            if (!File.Exists(xamlPath))
+            {
+                MessageBox.Show("SettingsWindow.xaml が見つかりません。", "PowerShot", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            Window settingsWindow;
+            using (var fs = new FileStream(xamlPath, FileMode.Open, FileAccess.Read))
+            {
+                settingsWindow = (Window)XamlReader.Load(fs);
+            }
+            settingsWindow.Owner = _window;
+            
+            string settingsPath = Path.Combine(_scriptDir, "settings.json");
+            int currentDigits = GetSelectedDigits();
+            var controller = new SettingsWindowController(settingsWindow, _settings, settingsPath, currentDigits);
+            if (controller.ShowDialog())
+            {
+                string newRoot = Path.GetFullPath(Path.Combine(_scriptDir, _settings.SaveFolder));
+                _rootBoundary = NormalizePath(newRoot);
+                
+                // Force navigation if current path is no longer valid or we want to update the tree
+                if (!Directory.Exists(_currentDirectory) || !_currentDirectory.StartsWith(_rootBoundary, StringComparison.OrdinalIgnoreCase))
+                {
+                    NavigateToDirectory(_rootBoundary);
+                }
+                else
+                {
+                    // Refresh view
+                    UpdateInputInterlock();
+                    UpdateSequence();
+                    UpdateFileNamePreview();
+                }
+            }
+        }
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
@@ -820,22 +1198,40 @@ namespace PowerShot
                 return;
             }
 
-            // Embed System Info if enabled
-            if (_session.IsSystemInfoVisible)
-            {
-                EmbedSystemInfo(_capturedBitmap);
-            }
- 
             string format = GetSelectedFormat();
             string fileName = FileManager.GenerateFileName(
-                _prefixTextBox.Text, "", _sequenceTextBox.Text, format);
+                _prefixTextBox.Text, "", _sequenceTextBox.Text, format, _settings.TimestampTemplate);
 
-            string error = FileManager.SaveImage(_capturedBitmap, _currentDirectory, fileName, format, 80L);
-            if (error != null)
+            using (Bitmap clonedBmp = (Bitmap)_capturedBitmap.Clone())
             {
-                MessageBox.Show(error, "PowerShot - 保存エラー",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
+                Bitmap finalBmp = clonedBmp;
+                if (_settings.CropEnabled)
+                {
+                    Rectangle cropRect = new Rectangle(_settings.CropX, _settings.CropY, _settings.CropWidth, _settings.CropHeight);
+                    if (cropRect.X < 0) cropRect.X = 0;
+                    if (cropRect.Y < 0) cropRect.Y = 0;
+                    if (cropRect.Width < 10) cropRect.Width = 10;
+                    if (cropRect.Height < 10) cropRect.Height = 10;
+                    if (cropRect.Right > clonedBmp.Width) cropRect.Width = clonedBmp.Width - cropRect.X;
+                    if (cropRect.Bottom > clonedBmp.Height) cropRect.Height = clonedBmp.Height - cropRect.Y;
+
+                    finalBmp = clonedBmp.Clone(cropRect, clonedBmp.PixelFormat);
+                }
+
+                ApplyOverlays(finalBmp, false);
+                string error = FileManager.SaveImage(finalBmp, _currentDirectory, fileName, format, _settings.JpegQuality);
+                
+                if (_settings.CropEnabled)
+                {
+                    finalBmp.Dispose();
+                }
+
+                if (error != null)
+                {
+                    MessageBox.Show(error, "PowerShot - 保存エラー",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
             }
 
             Saved = true;
@@ -850,45 +1246,437 @@ namespace PowerShot
             _window.Close();
         }
 
-        // --- System Info ---
+        // --- Crop ---
 
-        private void SystemInfoToggle_Click(object sender, RoutedEventArgs e)
+        private enum CropDragMode { None, DrawNew, Move, ResizeTopLeft, ResizeTopRight, ResizeBottomLeft, ResizeBottomRight, ResizeTop, ResizeBottom, ResizeLeft, ResizeRight }
+        private CropDragMode _cropDragMode = CropDragMode.None;
+        private System.Windows.Point _dragStartPoint;
+        private Rect _dragStartRect;
+        private bool _suppressCropTextBoxUpdate = false;
+
+        private void CropSettings_Changed(object sender, RoutedEventArgs e)
         {
-            _session.IsSystemInfoVisible = _systemInfoToggle.IsChecked ?? false;
+            if (_suppressSequenceUpdate || _settings == null) return;
+            if (_cropEnableCheckBox != null)
+            {
+                _settings.CropEnabled = _cropEnableCheckBox.IsChecked ?? false;
+                if (_cropCanvas != null) _cropCanvas.Visibility = _settings.CropEnabled ? Visibility.Visible : Visibility.Collapsed;
+            }
+            SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
+            RedrawPreview();
         }
 
-        private void EmbedSystemInfo(Bitmap bmp)
+        private void ResetCropButton_Click(object sender, RoutedEventArgs e)
         {
-            string info = GetSystemInfoString();
+            if (_capturedBitmap == null || _settings == null) return;
+            _settings.CropX = 0;
+            _settings.CropY = 0;
+            _settings.CropWidth = _capturedBitmap.Width;
+            _settings.CropHeight = _capturedBitmap.Height;
+            SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
+            SyncCropTextBoxesFromSettings();
+            SyncCropRectFromSettings();
+        }
+
+        private void SyncCropTextBoxesFromSettings()
+        {
+            if (_settings == null || _cropXTextBox == null) return;
+            _suppressCropTextBoxUpdate = true;
+            _cropXTextBox.Text = _settings.CropX.ToString();
+            _cropYTextBox.Text = _settings.CropY.ToString();
+            _cropWidthTextBox.Text = _settings.CropWidth.ToString();
+            _cropHeightTextBox.Text = _settings.CropHeight.ToString();
+            _suppressCropTextBoxUpdate = false;
+        }
+
+        private void SyncCropRectFromSettings()
+        {
+            if (_settings == null || _cropSelectionRect == null || _capturedBitmap == null) return;
+            
+            if (_settings.CropWidth <= 0 || _settings.CropHeight <= 0)
+            {
+                _settings.CropWidth = _capturedBitmap.Width;
+                _settings.CropHeight = _capturedBitmap.Height;
+            }
+            
+            UpdateCropRectUI(new Rect(_settings.CropX, _settings.CropY, _settings.CropWidth, _settings.CropHeight));
+        }
+
+        private void UpdateCropRectUI(Rect rect)
+        {
+            if (_cropSelectionRect == null) return;
+            Canvas.SetLeft(_cropSelectionRect, rect.X);
+            Canvas.SetTop(_cropSelectionRect, rect.Y);
+            _cropSelectionRect.Width = rect.Width;
+            _cropSelectionRect.Height = rect.Height;
+            _cropSelectionRect.Visibility = Visibility.Visible;
+        }
+
+        private void CropTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_suppressCropTextBoxUpdate || _settings == null || _capturedBitmap == null) return;
+            
+            int x, y, w, h;
+            if (int.TryParse(_cropXTextBox.Text, out x) &&
+                int.TryParse(_cropYTextBox.Text, out y) &&
+                int.TryParse(_cropWidthTextBox.Text, out w) &&
+                int.TryParse(_cropHeightTextBox.Text, out h))
+            {
+                if (x < 0) x = 0;
+                if (y < 0) y = 0;
+                if (w < 10) w = 10;
+                if (h < 10) h = 10;
+                if (x + w > _capturedBitmap.Width) w = _capturedBitmap.Width - x;
+                if (y + h > _capturedBitmap.Height) h = _capturedBitmap.Height - y;
+
+                _settings.CropX = x;
+                _settings.CropY = y;
+                _settings.CropWidth = w;
+                _settings.CropHeight = h;
+                
+                UpdateCropRectUI(new Rect(x, y, w, h));
+                SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
+                RedrawPreview();
+            }
+        }
+
+        private CropDragMode GetCropDragMode(System.Windows.Point p)
+        {
+            if (_cropSelectionRect.Visibility != Visibility.Visible) return CropDragMode.DrawNew;
+
+            double x = Canvas.GetLeft(_cropSelectionRect);
+            double y = Canvas.GetTop(_cropSelectionRect);
+            double w = _cropSelectionRect.Width;
+            double h = _cropSelectionRect.Height;
+            
+            double margin = 8.0;
+
+            bool left = Math.Abs(p.X - x) <= margin;
+            bool right = Math.Abs(p.X - (x + w)) <= margin;
+            bool top = Math.Abs(p.Y - y) <= margin;
+            bool bottom = Math.Abs(p.Y - (y + h)) <= margin;
+            
+            bool insideX = p.X >= x && p.X <= x + w;
+            bool insideY = p.Y >= y && p.Y <= y + h;
+
+            if (top && left) return CropDragMode.ResizeTopLeft;
+            if (top && right) return CropDragMode.ResizeTopRight;
+            if (bottom && left) return CropDragMode.ResizeBottomLeft;
+            if (bottom && right) return CropDragMode.ResizeBottomRight;
+            
+            if (top && insideX) return CropDragMode.ResizeTop;
+            if (bottom && insideX) return CropDragMode.ResizeBottom;
+            if (left && insideY) return CropDragMode.ResizeLeft;
+            if (right && insideY) return CropDragMode.ResizeRight;
+            
+            if (insideX && insideY) return CropDragMode.Move;
+            
+            return CropDragMode.DrawNew;
+        }
+
+        private void SetCropCursor(CropDragMode mode)
+        {
+            if (_cropCanvas == null) return;
+            switch (mode)
+            {
+                case CropDragMode.ResizeTopLeft:
+                case CropDragMode.ResizeBottomRight:
+                    _cropCanvas.Cursor = Cursors.SizeNWSE;
+                    break;
+                case CropDragMode.ResizeTopRight:
+                case CropDragMode.ResizeBottomLeft:
+                    _cropCanvas.Cursor = Cursors.SizeNESW;
+                    break;
+                case CropDragMode.ResizeTop:
+                case CropDragMode.ResizeBottom:
+                    _cropCanvas.Cursor = Cursors.SizeNS;
+                    break;
+                case CropDragMode.ResizeLeft:
+                case CropDragMode.ResizeRight:
+                    _cropCanvas.Cursor = Cursors.SizeWE;
+                    break;
+                case CropDragMode.Move:
+                    _cropCanvas.Cursor = Cursors.SizeAll;
+                    break;
+                default:
+                    _cropCanvas.Cursor = Cursors.Cross;
+                    break;
+            }
+        }
+
+        private void CropCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (_capturedBitmap == null || _cropEnableCheckBox == null || _cropEnableCheckBox.IsChecked != true) return;
+            
+            System.Windows.Point p = e.GetPosition(_cropCanvas);
+            _dragStartPoint = p;
+            _cropDragMode = GetCropDragMode(p);
+            
+            if (_cropDragMode == CropDragMode.DrawNew)
+            {
+                _dragStartRect = new Rect(p, new System.Windows.Size(0, 0));
+                UpdateCropRectUI(_dragStartRect);
+            }
+            else
+            {
+                _dragStartRect = new Rect(
+                    Canvas.GetLeft(_cropSelectionRect),
+                    Canvas.GetTop(_cropSelectionRect),
+                    _cropSelectionRect.Width,
+                    _cropSelectionRect.Height);
+            }
+            
+            _cropCanvas.CaptureMouse();
+        }
+
+        private void CropCanvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_capturedBitmap == null || _cropEnableCheckBox == null || _cropEnableCheckBox.IsChecked != true) return;
+            
+            System.Windows.Point p = e.GetPosition(_cropCanvas);
+
+            if (_cropDragMode == CropDragMode.None)
+            {
+                SetCropCursor(GetCropDragMode(p));
+                return;
+            }
+
+            double dx = p.X - _dragStartPoint.X;
+            double dy = p.Y - _dragStartPoint.Y;
+            Rect newRect = _dragStartRect;
+
+            if (_cropDragMode == CropDragMode.DrawNew)
+            {
+                double x = Math.Min(p.X, _dragStartPoint.X);
+                double y = Math.Min(p.Y, _dragStartPoint.Y);
+                double w = Math.Abs(p.X - _dragStartPoint.X);
+                double h = Math.Abs(p.Y - _dragStartPoint.Y);
+                newRect = new Rect(x, y, w, h);
+            }
+            else if (_cropDragMode == CropDragMode.Move)
+            {
+                newRect.X += dx;
+                newRect.Y += dy;
+            }
+            else
+            {
+                if (_cropDragMode == CropDragMode.ResizeTopLeft || _cropDragMode == CropDragMode.ResizeLeft || _cropDragMode == CropDragMode.ResizeBottomLeft)
+                {
+                    newRect.X += dx;
+                    newRect.Width -= dx;
+                }
+                if (_cropDragMode == CropDragMode.ResizeTopRight || _cropDragMode == CropDragMode.ResizeRight || _cropDragMode == CropDragMode.ResizeBottomRight)
+                {
+                    newRect.Width += dx;
+                }
+                if (_cropDragMode == CropDragMode.ResizeTopLeft || _cropDragMode == CropDragMode.ResizeTop || _cropDragMode == CropDragMode.ResizeTopRight)
+                {
+                    newRect.Y += dy;
+                    newRect.Height -= dy;
+                }
+                if (_cropDragMode == CropDragMode.ResizeBottomLeft || _cropDragMode == CropDragMode.ResizeBottom || _cropDragMode == CropDragMode.ResizeBottomRight)
+                {
+                    newRect.Height += dy;
+                }
+                
+                if (newRect.Width < 10) { newRect.Width = 10; if (_cropDragMode.ToString().Contains("Left")) newRect.X = _dragStartRect.Right - 10; }
+                if (newRect.Height < 10) { newRect.Height = 10; if (_cropDragMode.ToString().Contains("Top")) newRect.Y = _dragStartRect.Bottom - 10; }
+            }
+
+            if (newRect.X < 0) newRect.X = 0;
+            if (newRect.Y < 0) newRect.Y = 0;
+            if (newRect.Right > _cropCanvas.Width) newRect.X = _cropCanvas.Width - newRect.Width;
+            if (newRect.Bottom > _cropCanvas.Height) newRect.Y = _cropCanvas.Height - newRect.Height;
+            if (newRect.Width > _cropCanvas.Width) newRect.Width = _cropCanvas.Width;
+            if (newRect.Height > _cropCanvas.Height) newRect.Height = _cropCanvas.Height;
+            if (newRect.X < 0) newRect.X = 0;
+
+            UpdateCropRectUI(newRect);
+            
+            _suppressCropTextBoxUpdate = true;
+            if (_cropXTextBox != null) _cropXTextBox.Text = Math.Round(newRect.X).ToString();
+            if (_cropYTextBox != null) _cropYTextBox.Text = Math.Round(newRect.Y).ToString();
+            if (_cropWidthTextBox != null) _cropWidthTextBox.Text = Math.Round(newRect.Width).ToString();
+            if (_cropHeightTextBox != null) _cropHeightTextBox.Text = Math.Round(newRect.Height).ToString();
+            _suppressCropTextBoxUpdate = false;
+        }
+
+        private void CropCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_cropDragMode != CropDragMode.None)
+            {
+                _cropCanvas.ReleaseMouseCapture();
+                _cropDragMode = CropDragMode.None;
+                
+                if (_settings != null && _cropXTextBox != null)
+                {
+                    int x, y, w, h;
+                    int.TryParse(_cropXTextBox.Text, out x);
+                    int.TryParse(_cropYTextBox.Text, out y);
+                    int.TryParse(_cropWidthTextBox.Text, out w);
+                    int.TryParse(_cropHeightTextBox.Text, out h);
+                    
+                    if (w < 10) w = 10;
+                    if (h < 10) h = 10;
+                    
+                    _settings.CropX = x;
+                    _settings.CropY = y;
+                    _settings.CropWidth = w;
+                    _settings.CropHeight = h;
+                    SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
+                    RedrawPreview();
+                }
+            }
+        }
+        
+        private void CropCanvas_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (_cropDragMode == CropDragMode.None && _cropCanvas != null)
+            {
+                _cropCanvas.Cursor = Cursors.Arrow;
+            }
+        }
+
+        // --- Overlay & System Info ---
+
+        private void OverlaySettings_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_suppressSequenceUpdate || _settings == null) return;
+
+            // Save to settings
+            if (_overlayEnableCheckBox != null) _settings.OverlayEnabled = _overlayEnableCheckBox.IsChecked ?? false;
+            if (_embedSysInfoCheckBox != null) _settings.EmbedSysInfo = _embedSysInfoCheckBox.IsChecked ?? false;
+            if (_overlayTextBox != null) _settings.OverlayText = _overlayTextBox.Text;
+            
+            var sysItem = _sysInfoPositionComboBox != null ? _sysInfoPositionComboBox.SelectedItem as ComboBoxItem : null;
+            if (sysItem != null) _settings.SysInfoPosition = (string)sysItem.Tag;
+            
+            var txtItem = _overlayTextPositionComboBox != null ? _overlayTextPositionComboBox.SelectedItem as ComboBoxItem : null;
+            if (txtItem != null) _settings.OverlayTextPosition = (string)txtItem.Tag;
+
+            SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
+        }
+
+        private void UpdatePreviewButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Sync text before drawing
+            if (_overlayTextBox != null && _settings != null)
+            {
+                _settings.OverlayText = _overlayTextBox.Text;
+                SettingsManager.Save(Path.Combine(_scriptDir, "settings.json"), _settings);
+            }
+            RedrawPreview();
+        }
+
+        private void RedrawPreview()
+        {
+            if (_capturedBitmap == null) return;
+            
+            using (Bitmap previewBmp = (Bitmap)_capturedBitmap.Clone())
+            {
+                ApplyOverlays(previewBmp, true);
+                _previewImage.Source = ConvertBitmapToImageSource(previewBmp);
+            }
+        }
+
+        private PointF GetOverlayPosition(SizeF textSize, Rectangle bounds, string position, float padding)
+        {
+            float rectW = textSize.Width + padding * 2;
+            float rectH = textSize.Height + padding * 2;
+            float x = bounds.X + padding;
+            float y = bounds.Y + padding;
+
+            if (position == "TopRight")
+            {
+                x = bounds.Right - rectW - padding;
+            }
+            else if (position == "BottomLeft")
+            {
+                y = bounds.Bottom - rectH - padding;
+            }
+            else if (position == "BottomRight")
+            {
+                x = bounds.Right - rectW - padding;
+                y = bounds.Bottom - rectH - padding;
+            }
+            
+            if (x < bounds.X) x = bounds.X;
+            if (y < bounds.Y) y = bounds.Y;
+            return new PointF(x, y);
+        }
+
+        private void ApplyOverlays(Bitmap bmp, bool isPreview = false)
+        {
+            if (_settings == null || !_settings.OverlayEnabled) return;
+
+            Rectangle bounds = new Rectangle(0, 0, bmp.Width, bmp.Height);
+            
+            if (isPreview && _settings.CropEnabled)
+            {
+                bounds = new Rectangle(_settings.CropX, _settings.CropY, _settings.CropWidth, _settings.CropHeight);
+                if (bounds.X < 0) bounds.X = 0;
+                if (bounds.Y < 0) bounds.Y = 0;
+                if (bounds.Right > bmp.Width) bounds.Width = bmp.Width - bounds.X;
+                if (bounds.Bottom > bmp.Height) bounds.Height = bmp.Height - bounds.Y;
+            }
+            var overlays = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string>>();
+
+            if (_settings.EmbedSysInfo)
+            {
+                string info = GetSystemInfoString();
+                string pos = string.IsNullOrEmpty(_settings.SysInfoPosition) ? "TopLeft" : _settings.SysInfoPosition;
+                if (!overlays.ContainsKey(pos)) overlays[pos] = new System.Collections.Generic.List<string>();
+                overlays[pos].Add(info);
+            }
+            if (!string.IsNullOrWhiteSpace(_settings.OverlayText))
+            {
+                string pos = string.IsNullOrEmpty(_settings.OverlayTextPosition) ? "TopLeft" : _settings.OverlayTextPosition;
+                if (!overlays.ContainsKey(pos)) overlays[pos] = new System.Collections.Generic.List<string>();
+                overlays[pos].Add(_settings.OverlayText);
+            }
+
+            foreach (var kvp in overlays)
+            {
+                string combinedText = string.Join("\n", kvp.Value);
+                DrawOverlayBlock(bmp, bounds, kvp.Key, combinedText);
+            }
+        }
+
+        private void DrawOverlayBlock(Bitmap bmp, Rectangle bounds, string position, string text)
+        {
             using (Graphics g = Graphics.FromImage(bmp))
             {
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                 g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-                using (Font font = new Font("Segoe UI", 12, System.Drawing.FontStyle.Regular))
+                using (Font font = new Font("Segoe UI", 16, System.Drawing.FontStyle.Bold))
                 {
-                    SizeF textSize = g.MeasureString(info, font);
-                    float padding = 8;
-                    float rectW = textSize.Width + padding * 2;
-                    float rectH = textSize.Height + padding * 2;
-                    float x = 10; // Left aligned to avoid covering taskbar clock on right
-                    float y = bmp.Height - rectH - 10;
+                    SizeF textSize = g.MeasureString(text, font);
+                    float padding = 12;
+                    PointF pt = GetOverlayPosition(textSize, bounds, position, padding);
 
-                    // Ensure coordinates are within bounds
-                    if (x < 0) x = 0;
-                    if (y < 0) y = 0;
-
-                    // Draw semi-transparent background
                     using (System.Drawing.SolidBrush brush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(160, 0, 0, 0)))
                     {
-                        g.FillRectangle(brush, x, y, rectW, rectH);
+                        g.FillRectangle(brush, pt.X, pt.Y, textSize.Width + padding * 2, textSize.Height + padding * 2);
                     }
 
-                    // Draw text
                     using (System.Drawing.SolidBrush textBrush = new System.Drawing.SolidBrush(System.Drawing.Color.White))
                     {
-                        g.DrawString(info, font, textBrush, x + padding, y + padding);
+                        g.DrawString(text, font, textBrush, pt.X + padding, pt.Y + padding);
                     }
+                }
+            }
+        }
+
+        private void SetComboBoxByTag(ComboBox cb, string tagValue)
+        {
+            if (cb == null || string.IsNullOrEmpty(tagValue)) return;
+            foreach (ComboBoxItem item in cb.Items)
+            {
+                if ((string)item.Tag == tagValue)
+                {
+                    cb.SelectedItem = item;
+                    break;
                 }
             }
         }
@@ -1140,17 +1928,18 @@ namespace PowerShot
         private string _lastImageHash;
         private bool _isWindowOpen;
 
-        private string _rootBoundary;
+        private AppSettings _settings;
         private string _scriptPath;
         private SessionState _session;
 
-        public ClipboardWatcher(string scriptPath, string saveDir, SessionState session)
+        public ClipboardWatcher(string scriptPath, AppSettings settings, SessionState session)
         {
             _scriptPath = scriptPath;
-            _rootBoundary = saveDir;
+            _settings = settings;
             _session = session;
             _isWindowOpen = false;
 
+            string saveDir = Path.GetFullPath(Path.Combine(_scriptPath, _settings.SaveFolder));
             // Ensure Screenshots directory exists
             if (!Directory.Exists(saveDir))
             {
@@ -1257,7 +2046,7 @@ namespace PowerShot
                     mainWindow = (Window)XamlReader.Load(fs);
                 }
 
-                var controller = new MainWindowController(mainWindow, bitmap, _scriptPath, _rootBoundary, _session);
+                var controller = new MainWindowController(mainWindow, bitmap, _scriptPath, _settings, _session);
 
                 mainWindow.Closed += (s, e) =>
                 {
@@ -1346,9 +2135,13 @@ namespace PowerShot
     {
         private static SessionState _session = new SessionState();
 
-        public static void Run(string scriptPath, string saveDir)
+        public static void Run(string scriptPath)
         {
             NativeMethods.SetProcessDPIAware();
+
+            string settingsPath = Path.Combine(scriptPath, "settings.json");
+            var settings = SettingsManager.Load(settingsPath);
+            string saveDir = Path.GetFullPath(Path.Combine(scriptPath, settings.SaveFolder));
 
             Console.WriteLine("-----------------------------------------");
             Console.WriteLine("  >_ PowerShot v2.0");
@@ -1368,7 +2161,7 @@ namespace PowerShot
             var app = new Application();
             app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-            var watcher = new ClipboardWatcher(scriptPath, saveDir, _session);
+            var watcher = new ClipboardWatcher(scriptPath, settings, _session);
             watcher.Start();
 
             // Handle console close

@@ -295,6 +295,77 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Settings Tool Button style -->
+        <Style x:Key="SettingsToolButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#F1F1F1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3F3F46"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- CheckBox Style -->
+        <Style x:Key="DarkCheckBox" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#F1F1F1"/>
+            <Setter Property="FontFamily" Value="Yu Gothic UI, Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,4"/>
+        </Style>
+
+        <!-- TabControl Style -->
+        <Style x:Key="DarkTabControl" TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+
+        <!-- TabItem Style -->
+        <Style x:Key="DarkTabItem" TargetType="TabItem">
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="Foreground" Value="#AAAAAA"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,6"/>
+            <Setter Property="FontFamily" Value="Yu Gothic UI, Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4,4,0,0" Margin="0,0,2,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" ContentSource="Header" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#1E1E1E"/>
+                                <Setter Property="Foreground" Value="#F1F1F1"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="False"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="border" Property="Background" Value="#3E3E42"/>
+                                <Setter Property="Foreground" Value="#F1F1F1"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border Background="#252526" CornerRadius="10" BorderBrush="#3F3F46" BorderThickness="1" ClipToBounds="True">
@@ -317,9 +388,14 @@
                     <TextBlock Text="PowerShot 2.0" Foreground="#AAAAAA" FontSize="11" Margin="4,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <Button x:Name="CloseToolButton" Grid.Column="2" 
-                        Width="45" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" 
-                        Style="{StaticResource TitleBarButtonStyle}" VerticalAlignment="Stretch"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button x:Name="SettingsToolButton" 
+                            Width="45" Content="⚙" FontSize="14" 
+                            Style="{StaticResource SettingsToolButtonStyle}" VerticalAlignment="Stretch"/>
+                    <Button x:Name="CloseToolButton" 
+                            Width="45" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" 
+                            Style="{StaticResource TitleBarButtonStyle}" VerticalAlignment="Stretch"/>
+                </StackPanel>
             </Grid>
 
             <!-- Main Content -->
@@ -329,8 +405,8 @@
                      <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#3D50A6E8"/>
                 </Grid.Resources>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="7*"/>
-                    <ColumnDefinition Width="3*"/>
+                    <ColumnDefinition Width="65*"/>
+                    <ColumnDefinition Width="35*"/>
                 </Grid.ColumnDefinitions>
         
                 <!-- ===== LEFT COLUMN: Image Preview ===== -->
@@ -341,14 +417,22 @@
                         CornerRadius="4"
                         Margin="0,0,8,0">
                     <Viewbox Stretch="Uniform">
-                        <Image x:Name="PreviewImage"
-                               RenderOptions.BitmapScalingMode="HighQuality"
-                               Stretch="Uniform"/>
+                        <Grid>
+                            <Image x:Name="PreviewImage" RenderOptions.BitmapScalingMode="HighQuality"/>
+                            <!-- Background="#01000000" is almost transparent but catches mouse events -->
+                            <Canvas x:Name="CropCanvas" Background="#01000000" Visibility="Collapsed">
+                                <Rectangle x:Name="CropSelectionRect" 
+                                           Stroke="DeepSkyBlue" StrokeThickness="2" StrokeDashArray="4 4" 
+                                           Fill="#33007ACC" Visibility="Collapsed"/>
+                            </Canvas>
+                        </Grid>
                     </Viewbox>
                 </Border>
         
                 <!-- ===== RIGHT COLUMN: Explorer + Form ===== -->
-                <Grid Grid.Column="1">
+                <TabControl Grid.Column="1" Style="{StaticResource DarkTabControl}" Margin="8,4,0,0">
+                    <TabItem Header="💾 保存" Style="{StaticResource DarkTabItem}">
+                        <Grid Margin="0,8,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>   <!-- Row 1: File Explorer + Buttons -->
                         <RowDefinition Height="Auto"/>   <!-- Row 2: Back + Address bar -->
@@ -475,13 +559,6 @@
                             CornerRadius="4"
                             Padding="15">
                         <StackPanel>
-                            <!-- Image Embedding Toggle -->
-                            <CheckBox x:Name="SystemInfoToggle" 
-                                      Content="💻 システム情報を画像に埋め込む" 
-                                      Foreground="#AAAAAA" 
-                                      FontSize="11"
-                                      Margin="0,0,0,10" 
-                                      Cursor="Hand"/>
                             <!-- Prefix -->
                             <Grid Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
@@ -547,7 +624,139 @@
                         </StackPanel>
                     </Border>
                 
-            </Grid>
+                        </Grid>
+                    </TabItem>
+                    
+                    <TabItem Header="🖌️ オーバーレイ" Style="{StaticResource DarkTabItem}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                            <StackPanel>
+                                <!-- Master Toggle -->
+                                <Border Background="#1E1E1E" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="15,10" Margin="0,0,0,10">
+                                    <CheckBox x:Name="OverlayEnableCheckBox" Content="オーバーレイ機能を有効にする" Style="{StaticResource DarkCheckBox}" FontWeight="Bold" Foreground="#569CD6"/>
+                                </Border>
+
+                                <StackPanel x:Name="OverlaySettingsPanel" IsEnabled="{Binding ElementName=OverlayEnableCheckBox, Path=IsChecked}">
+                                    <!-- System Info Section -->
+                                    <Border Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="15" Margin="0,0,0,10">
+                                        <StackPanel>
+                                            <TextBlock Text="システム情報" Foreground="#AAAAAA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                            <CheckBox x:Name="EmbedSysInfoCheckBox" Content="画像にシステム情報を埋め込む" Style="{StaticResource DarkCheckBox}" Margin="0,0,0,12"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="70"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="表示位置:" Style="{StaticResource FormLabel}"/>
+                                                <ComboBox x:Name="SysInfoPositionComboBox" Grid.Column="1" Style="{StaticResource DarkComboBox}">
+                                                    <ComboBoxItem Tag="TopLeft" Content="左上"/>
+                                                    <ComboBoxItem Tag="TopRight" Content="右上"/>
+                                                    <ComboBoxItem Tag="BottomLeft" Content="左下"/>
+                                                    <ComboBoxItem Tag="BottomRight" Content="右下"/>
+                                                </ComboBox>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Custom Text Section -->
+                                    <Border Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="15" Margin="0,0,0,10">
+                                        <StackPanel>
+                                            <TextBlock Text="カスタムテキスト" Foreground="#AAAAAA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                            <Grid Margin="0,0,0,12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="70"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="テキスト:" Style="{StaticResource FormLabel}"/>
+                                                <TextBox x:Name="OverlayTextBox" Grid.Column="1" Style="{StaticResource DarkTextBox}"/>
+                                            </Grid>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="70"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="表示位置:" Style="{StaticResource FormLabel}"/>
+                                                <ComboBox x:Name="OverlayTextPositionComboBox" Grid.Column="1" Style="{StaticResource DarkComboBox}">
+                                                    <ComboBoxItem Tag="TopLeft" Content="左上"/>
+                                                    <ComboBoxItem Tag="TopRight" Content="右上"/>
+                                                    <ComboBoxItem Tag="BottomLeft" Content="左下"/>
+                                                    <ComboBoxItem Tag="BottomRight" Content="右下"/>
+                                                </ComboBox>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Update Button -->
+                                <Button x:Name="UpdatePreviewButton" 
+                                        Style="{StaticResource PrimaryButton}" 
+                                        Content="🔄 プレビューを更新" 
+                                        Margin="0,0,0,10"
+                                        Padding="0,10"
+                                        FontSize="13"
+                                        FontWeight="SemiBold"
+                                        HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Crop Tab -->
+                    <TabItem Header="📐 トリミング" Style="{StaticResource DarkTabItem}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                            <StackPanel>
+                                <!-- Master Toggle -->
+                                <Border Background="#1E1E1E" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="15,10" Margin="0,0,0,10">
+                                    <CheckBox x:Name="CropEnableCheckBox" Content="トリミング機能を有効にする" Style="{StaticResource DarkCheckBox}" FontWeight="Bold" Foreground="#569CD6"/>
+                                </Border>
+
+                                <StackPanel x:Name="CropSettingsPanel" IsEnabled="{Binding ElementName=CropEnableCheckBox, Path=IsChecked}">
+                                    <Border Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="15" Margin="0,0,0,10">
+                                        <StackPanel>
+                                            <TextBlock Text="切り抜き範囲 (プレビュー上でドラッグして指定可能)" Foreground="#AAAAAA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,12" TextWrapping="Wrap"/>
+                                            
+                                            <Grid Margin="0,0,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="20"/>
+                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <TextBlock Grid.Column="0" Text="X:" Style="{StaticResource FormLabel}"/>
+                                                <TextBox x:Name="CropXTextBox" Grid.Column="1" Style="{StaticResource DarkTextBox}"/>
+                                                
+                                                <TextBlock Grid.Column="3" Text="Y:" Style="{StaticResource FormLabel}"/>
+                                                <TextBox x:Name="CropYTextBox" Grid.Column="4" Style="{StaticResource DarkTextBox}"/>
+                                            </Grid>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="20"/>
+                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <TextBlock Grid.Column="0" Text="幅:" Style="{StaticResource FormLabel}"/>
+                                                <TextBox x:Name="CropWidthTextBox" Grid.Column="1" Style="{StaticResource DarkTextBox}"/>
+                                                
+                                                <TextBlock Grid.Column="3" Text="高さ:" Style="{StaticResource FormLabel}"/>
+                                                <TextBox x:Name="CropHeightTextBox" Grid.Column="4" Style="{StaticResource DarkTextBox}"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                    
+                                    <Button x:Name="ResetCropButton" 
+                                            Style="{StaticResource SecondaryButton}" 
+                                            Content="範囲をリセット" 
+                                            Margin="0,0,0,10"
+                                            Padding="0,6"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
         </Grid>
     </Grid>
     </Border>
