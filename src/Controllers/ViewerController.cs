@@ -106,7 +106,10 @@ namespace PowerShot
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine("  [Error] ディレクトリの走査中にエラーが発生しました: " + ex.Message);
+            }
             
             return node;
         }
