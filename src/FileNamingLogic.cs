@@ -7,7 +7,7 @@ namespace PowerShot
     {
         public static readonly char[] ForbiddenChars = new char[] { '\\', '/', ':', '*', '?', '"', '<', '>', '|' };
 
-        public static string? ValidateName(string name)
+        public static string ValidateName(string name)
         {
             if (string.IsNullOrEmpty(name)) return null;
 
