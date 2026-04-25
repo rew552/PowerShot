@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -197,7 +197,7 @@ namespace PowerShot
                     // Clear clipboard after save to avoid re-triggering
                     if (controller.Saved)
                     {
-                        try { System.Windows.Clipboard.Clear(); } catch (Exception ex) { Console.WriteLine("Context message: " + ex.Message); }
+                        try { System.Windows.Clipboard.Clear(); } catch (Exception ex) { Console.WriteLine("  [Error] クリップボードのクリアに失敗しました: " + ex.Message); }
                         _lastImageHash = null;
                     }
                 };
@@ -255,7 +255,7 @@ namespace PowerShot
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Context message: " + ex.Message);
+                Console.WriteLine("  [Error] Bitmap への変換に失敗しました: " + ex.Message);
                 return null;
             }
         }

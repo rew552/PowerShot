@@ -1,4 +1,4 @@
-﻿﻿using System.IO;
+﻿using System.IO;
 using System.Text.RegularExpressions;
 
 namespace PowerShot
@@ -47,7 +47,10 @@ namespace PowerShot
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine("  [Error] 次の連番の取得に失敗しました: " + ex.Message);
+            }
 
             return maxSeq + 1;
         }
