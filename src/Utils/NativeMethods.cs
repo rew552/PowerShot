@@ -14,7 +14,19 @@ namespace PowerShot
         [DllImport("user32.dll")]
         public static extern bool SetProcessDPIAware();
 
+        [DllImport("user32.dll")]
+        public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+        [DllImport("user32.dll")]
+        public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        [DllImport("gdi32.dll")]
+        public static extern bool DeleteObject(IntPtr hObject);
+
         public const int WM_CLIPBOARDUPDATE = 0x031D;
+        public const int WM_HOTKEY = 0x0312;
+        public const uint MOD_SHIFT = 0x0004;
+        public const uint VK_SNAPSHOT = 0x2C;
 
         // SHGetFileInfo for system icons
         [DllImport("shell32.dll", CharSet = CharSet.Auto)]

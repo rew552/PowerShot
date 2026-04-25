@@ -4,7 +4,6 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -1017,12 +1016,9 @@ namespace PowerShot
             }
             finally
             {
-                DeleteObject(hBitmap);
+                NativeMethods.DeleteObject(hBitmap);
             }
         }
-
-        [DllImport("gdi32.dll")]
-        private static extern bool DeleteObject(IntPtr hObject);
     }
 }
 

@@ -13,7 +13,10 @@ namespace PowerShot
 {
     public class ClipboardWatcher : IDisposable
     {
+        private const int MonitorCaptureHotkeyId = 1;
+
         private HwndSource _hwndSource;
+        private bool _hotkeyRegistered;
 
         private string _lastImageHash;
         private bool _isWindowOpen;
@@ -49,6 +52,16 @@ namespace PowerShot
             _hwndSource = new HwndSource(parameters);
             _hwndSource.AddHook(WndProc);
             NativeMethods.AddClipboardFormatListener(_hwndSource.Handle);
+
+            // Hardcoded Shift+PrintScreen for active-monitor capture.
+            // Failure here just means another app owns the combo — not fatal.
+            _hotkeyRegistered = NativeMethods.RegisterHotKey(
+                _hwndSource.Handle, MonitorCaptureHotkeyId,
+                NativeMethods.MOD_SHIFT, NativeMethods.VK_SNAPSHOT);
+            if (!_hotkeyRegistered)
+            {
+                Console.WriteLine("  [Warn] Shift+PrintScreen の登録に失敗しました (他アプリと競合の可能性)。");
+            }
         }
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -58,7 +71,50 @@ namespace PowerShot
                 handled = true;
                 ProcessClipboard();
             }
+            else if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == MonitorCaptureHotkeyId)
+            {
+                handled = true;
+                CaptureActiveMonitor();
+            }
             return IntPtr.Zero;
+        }
+
+        private void CaptureActiveMonitor()
+        {
+            if (_isWindowOpen) return;
+
+            try
+            {
+                var cursor = System.Windows.Forms.Cursor.Position;
+                var screen = System.Windows.Forms.Screen.FromPoint(cursor);
+                var bounds = screen.Bounds;
+
+                using (var bmp = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format32bppArgb))
+                {
+                    using (var g = Graphics.FromImage(bmp))
+                    {
+                        g.CopyFromScreen(bounds.X, bounds.Y, 0, 0, bounds.Size, CopyPixelOperation.SourceCopy);
+                    }
+
+                    // Push to clipboard; this fires WM_CLIPBOARDUPDATE and the normal save flow takes over.
+                    IntPtr hBitmap = bmp.GetHbitmap();
+                    try
+                    {
+                        var src = Imaging.CreateBitmapSourceFromHBitmap(
+                            hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                        src.Freeze();
+                        System.Windows.Clipboard.SetImage(src);
+                    }
+                    finally
+                    {
+                        NativeMethods.DeleteObject(hBitmap);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("  [Error] アクティブモニターのキャプチャに失敗: " + ex.Message);
+            }
         }
 
         private void ProcessClipboard()
@@ -210,6 +266,11 @@ namespace PowerShot
         {
             if (_hwndSource != null)
             {
+                if (_hotkeyRegistered)
+                {
+                    NativeMethods.UnregisterHotKey(_hwndSource.Handle, MonitorCaptureHotkeyId);
+                    _hotkeyRegistered = false;
+                }
                 NativeMethods.RemoveClipboardFormatListener(_hwndSource.Handle);
                 _hwndSource.RemoveHook(WndProc);
                 _hwndSource.Dispose();
