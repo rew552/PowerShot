@@ -21,3 +21,8 @@ $RECYCLE.BIN/
 *.tmp
 *.bak
 *.log
+
+# Agent Files
+CLAUDE.md
+GEMINI.md
+

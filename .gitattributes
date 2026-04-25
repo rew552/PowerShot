@@ -2,3 +2,5 @@
 .gitattributes export-ignore
 tests/ export-ignore
 docs/ export-ignore
+CLAUDE.md export-ignore
+GEMINI.md export-ignore

@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -35,25 +35,13 @@ namespace PowerShot
         /// <summary>
         /// Generates the filename based on prefix, optionName, sequence, and format.
         /// </summary>
-        public static string GenerateFileName(string prefix, string optionName, string seqStr, string format, string timestampTemplate = "yyyyMMdd-HHmmss")
+        public static string GenerateFileName(string prefix, string optionName, string seqStr, string format)
         {
             string ext = format.ToLowerInvariant();
 
             if (string.IsNullOrWhiteSpace(prefix) && string.IsNullOrWhiteSpace(optionName))
             {
-                string middle;
-                if (timestampTemplate == "SEQ")
-                {
-                    middle = seqStr;
-                }
-                else if (timestampTemplate == "yyyyMMdd_SEQ")
-                {
-                    middle = DateTime.Now.ToString("yyyyMMdd") + "_" + seqStr;
-                }
-                else
-                {
-                    middle = DateTime.Now.ToString(timestampTemplate);
-                }
+                string middle = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 return string.Format("SS_{0}.{1}", middle, ext);
             }
 

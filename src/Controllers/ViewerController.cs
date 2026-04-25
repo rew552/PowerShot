@@ -30,7 +30,7 @@ namespace PowerShot
                 
                 if (!Path.IsPathRooted(saveFolder))
                 {
-                    saveFolder = Path.GetFullPath(Path.Combine(srcDir, saveFolder));
+                    saveFolder = Path.GetFullPath(Path.Combine(projectDir, saveFolder));
                 }
 
                 if (!Directory.Exists(saveFolder))

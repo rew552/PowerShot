@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,8 +15,6 @@ namespace PowerShot
         private TextBox _saveFolderTextBox;
         private Button _browseFolderButton;
 
-        private ComboBox _timestampTemplateComboBox;
-        private TextBlock _timestampPreviewLabel;
         private Slider _jpegQualitySlider;
         private TextBlock _jpegQualityValueLabel;
 
@@ -46,8 +44,6 @@ namespace PowerShot
             _saveFolderTextBox = (TextBox)_window.FindName("SaveFolderTextBox");
             _browseFolderButton = (Button)_window.FindName("BrowseFolderButton");
 
-            _timestampTemplateComboBox = (ComboBox)_window.FindName("TimestampTemplateComboBox");
-            _timestampPreviewLabel = (TextBlock)_window.FindName("TimestampPreviewLabel");
             _jpegQualitySlider = (Slider)_window.FindName("JpegQualitySlider");
             _jpegQualityValueLabel = (TextBlock)_window.FindName("JpegQualityValueLabel");
 
@@ -68,7 +64,6 @@ namespace PowerShot
 
             _jpegQualitySlider.ValueChanged += (s, e) => _jpegQualityValueLabel.Text = ((int)e.NewValue).ToString();
             
-            _timestampTemplateComboBox.SelectionChanged += (s, e) => UpdateTimestampPreview();
         }
 
         private void Initialize()
@@ -81,35 +76,8 @@ namespace PowerShot
             
 
 
-            // Select matching timestamp template
-            foreach (ComboBoxItem item in _timestampTemplateComboBox.Items)
-            {
-                if ((string)item.Tag == _settings.TimestampTemplate)
-                {
-                    _timestampTemplateComboBox.SelectedItem = item;
-                    break;
-                }
-            }
         }
 
-        private void UpdateTimestampPreview()
-        {
-            var item = _timestampTemplateComboBox.SelectedItem as ComboBoxItem;
-            if (item != null)
-            {
-                string template = (string)item.Tag;
-                if (template == "yyyyMMdd_SEQ")
-                {
-                    string seqStr = 1.ToString("D" + _previewDigits);
-                    _timestampPreviewLabel.Text = DateTime.Now.ToString("yyyyMMdd") + "_" + seqStr;
-                }
-                else
-                {
-                    try { _timestampPreviewLabel.Text = DateTime.Now.ToString(template); }
-                    catch { _timestampPreviewLabel.Text = "Invalid Format"; }
-                }
-            }
-        }
 
         private void BrowseFolderButton_Click(object sender, RoutedEventArgs e)
         {
@@ -135,10 +103,6 @@ namespace PowerShot
             _settings.JpegQuality = (int)_jpegQualitySlider.Value;
             
 
-
-            var tsItem = _timestampTemplateComboBox.SelectedItem as ComboBoxItem;
-            if (tsItem != null)
-                _settings.TimestampTemplate = (string)tsItem.Tag;
 
             SettingsManager.Save(_settingsPath, _settings);
             SettingsChanged = true;

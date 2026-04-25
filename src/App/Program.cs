@@ -14,7 +14,10 @@ namespace PowerShot
 
             string settingsPath = Path.Combine(scriptPath, "settings.json");
             var settings = SettingsManager.Load(settingsPath);
-            string saveDir = Path.GetFullPath(Path.Combine(scriptPath, settings.SaveFolder));
+            
+            // Use the parent of scriptPath (project root) as the base for the SaveFolder
+            string projectRoot = Path.GetDirectoryName(scriptPath);
+            string saveDir = Path.GetFullPath(Path.Combine(projectRoot, settings.SaveFolder));
 
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Cyan;

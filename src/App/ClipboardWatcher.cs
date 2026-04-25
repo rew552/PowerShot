@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -32,7 +32,8 @@ namespace PowerShot
             _session = session;
             _isWindowOpen = false;
 
-            string saveDir = Path.GetFullPath(Path.Combine(_scriptPath, _settings.SaveFolder));
+            string projectRoot = Path.GetDirectoryName(_scriptPath);
+            string saveDir = Path.GetFullPath(Path.Combine(projectRoot, _settings.SaveFolder));
             // Ensure Screenshots directory exists
             if (!Directory.Exists(saveDir))
             {
@@ -178,18 +179,12 @@ namespace PowerShot
 
             try
             {
-                string xamlPath = Path.Combine(_scriptPath, "Views", "MainWindow.xaml");
-                if (!File.Exists(xamlPath))
+                Window mainWindow = XamlLoader.LoadWindow(_scriptPath, "MainWindow");
+                if (mainWindow == null)
                 {
                     MessageBox.Show("MainWindow.xaml が見つかりません。",
                         "PowerShot", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
-                }
-
-                Window mainWindow;
-                using (var fs = new FileStream(xamlPath, FileMode.Open, FileAccess.Read))
-                {
-                    mainWindow = (Window)XamlReader.Load(fs);
                 }
 
                 var controller = new MainWindowController(mainWindow, bitmap, _scriptPath, _settings, _session);

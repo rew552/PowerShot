@@ -331,7 +331,11 @@ namespace PowerShot
 
         private Rectangle ClampToBitmap(int x, int y, int w, int h)
         {
-            int srcW = _bitmap.Width, srcH = _bitmap.Height;
+            return ClampRect(x, y, w, h, _bitmap.Width, _bitmap.Height);
+        }
+
+        public static Rectangle ClampRect(int x, int y, int w, int h, int srcW, int srcH)
+        {
             int min = (int)MinSize;
             if (x < 0) x = 0;
             if (y < 0) y = 0;

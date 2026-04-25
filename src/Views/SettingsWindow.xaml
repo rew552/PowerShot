@@ -206,16 +206,6 @@
                         <Button x:Name="BrowseFolderButton" Grid.Column="1" Content="..." Style="{StaticResource SecondaryButton}" Width="30"/>
                     </Grid>
 
-                    <!-- Timestamp Template -->
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="タイムスタンプ書式" Style="{StaticResource FormLabel}"/>
-                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,16">
-                        <ComboBox x:Name="TimestampTemplateComboBox" Style="{StaticResource DarkComboBox}" Margin="0,0,0,6">
-                            <ComboBoxItem Tag="yyyyMMdd_HHmmss" Content="yyyyMMdd_HHmmss"/>
-                            <ComboBoxItem Tag="yyyy-MM-dd_HH-mm-ss" Content="yyyy-MM-dd_HH-mm-ss"/>
-                            <ComboBoxItem Tag="yyyyMMdd_SEQ" Content="yyyyMMdd_連番"/>
-                        </ComboBox>
-                        <TextBlock x:Name="TimestampPreviewLabel" Foreground="#50A6E8" FontSize="12" FontFamily="Consolas"/>
-                    </StackPanel>
 
                     <!-- JPEG Quality -->
                     <TextBlock Grid.Row="3" Grid.Column="0" Text="JPEG保存品質" Style="{StaticResource FormLabel}"/>
