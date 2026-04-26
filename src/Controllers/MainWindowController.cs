@@ -220,36 +220,41 @@ namespace PowerShot
             }
         }
 
-        private void RefreshExplorer()
+        private List<ExplorerItem> GetExplorerItems(string directoryPath)
         {
             var items = new List<ExplorerItem>();
+            var dirInfo = new DirectoryInfo(directoryPath);
+
+            items.AddRange(dirInfo.GetDirectories()
+                .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(dir => new ExplorerItem
+                {
+                    Name = dir.Name,
+                    FullPath = dir.FullName,
+                    IsDirectory = true,
+                    LastModified = dir.LastWriteTime,
+                    Icon = IconHelper.GetIcon(dir.FullName, true)
+                }));
+
+            items.AddRange(dirInfo.GetFiles()
+                .OrderBy(f => f.Name)
+                .Select(fi => new ExplorerItem
+                {
+                    Name = fi.Name,
+                    FullPath = fi.FullName,
+                    IsDirectory = false,
+                    LastModified = fi.LastWriteTime,
+                    Icon = IconHelper.GetIcon(fi.FullName, false)
+                }));
+
+            return items;
+        }
+
+        private void RefreshExplorer()
+        {
             try
             {
-                foreach (var dir in new DirectoryInfo(_currentDirectory).GetDirectories().OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
-                {
-                    items.Add(new ExplorerItem
-                    {
-                        Name = dir.Name,
-                        FullPath = dir.FullName,
-                        IsDirectory = true,
-                        LastModified = dir.LastWriteTime,
-                        Icon = IconHelper.GetIcon(dir.FullName, true)
-                    });
-                }
-
-                foreach (var fi in new DirectoryInfo(_currentDirectory).GetFiles().OrderBy(f => f.Name))
-                {
-                    items.Add(new ExplorerItem
-                    {
-                        Name = fi.Name,
-                        FullPath = fi.FullName,
-                        IsDirectory = false,
-                        LastModified = fi.LastWriteTime,
-                        Icon = IconHelper.GetIcon(fi.FullName, false)
-                    });
-                }
-
-                _explorerListView.ItemsSource = items;
+                _explorerListView.ItemsSource = GetExplorerItems(_currentDirectory);
 
                 // Auto-resize first column to content
                 GridView gv = _explorerListView.View as GridView;
