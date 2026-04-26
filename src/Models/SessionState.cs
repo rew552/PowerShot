@@ -1,4 +1,4 @@
-﻿﻿namespace PowerShot
+﻿namespace PowerShot.Models
 {
     public class SessionState
     {

@@ -1,7 +1,7 @@
-﻿﻿using System;
+﻿using System;
 using System.Runtime.InteropServices;
 
-namespace PowerShot
+namespace PowerShot.Utils
 {
     internal static class NativeMethods
     {

@@ -4,8 +4,10 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Runtime.Serialization.Json;
+using PowerShot.Models;
 
-namespace PowerShot
+
+namespace PowerShot.Controllers
 {
     public static class ViewerController
     {

@@ -2,7 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Markup;
 
-namespace PowerShot
+namespace PowerShot.Utils
 {
     internal static class XamlLoader
     {
