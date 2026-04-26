@@ -68,8 +68,9 @@ namespace PowerShot
                     return settings;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine("  [Error] 設定の読み込みに失敗しました: " + ex.Message);
                 return AppSettings.Default();
             }
         }
