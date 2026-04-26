@@ -239,11 +239,11 @@ namespace PowerShot
             {
                 var dirInfo = new DirectoryInfo(_currentDirectory);
 
-                items.AddRange(dirInfo.GetDirectories()
+                items.AddRange(dirInfo.EnumerateDirectories()
                     .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase)
                     .Select(d => CreateExplorerItem(d, true)));
 
-                items.AddRange(dirInfo.GetFiles()
+                items.AddRange(dirInfo.EnumerateFiles()
                     .OrderBy(f => f.Name)
                     .Select(f => CreateExplorerItem(f, false)));
 
