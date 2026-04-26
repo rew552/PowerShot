@@ -15,5 +15,6 @@
 
   <ItemGroup>
     <Compile Include="../../src/FileNamingLogic.cs" Link="FileNamingLogic.cs" />
+    <Compile Include="../../src/Utils/SequenceManager.cs" Link="SequenceManager.cs" />
   </ItemGroup>
 </Project>
