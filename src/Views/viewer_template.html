@@ -392,7 +392,7 @@
 
         // Init
         let folderDataObj = null;
-        try { folderDataObj = typeof FOLDER_DATA === 'string' ? JSON.parse(FOLDER_DATA) : FOLDER_DATA; } catch(e) {}
+        try { folderDataObj = typeof FOLDER_DATA === 'string' ? JSON.parse(FOLDER_DATA) : FOLDER_DATA; } catch(e) { console.error("Error parsing folder data:", e); }
 
         if (folderDataObj && folderDataObj.Name) {
             renderTree(folderDataObj, folderTree);

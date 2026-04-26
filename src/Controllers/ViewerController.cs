@@ -108,6 +108,7 @@ namespace PowerShot
             }
             catch (Exception ex)
             {
+                // Logging exception
                 Console.WriteLine("  [Error] ディレクトリの走査中にエラーが発生しました: " + ex.Message);
             }
             

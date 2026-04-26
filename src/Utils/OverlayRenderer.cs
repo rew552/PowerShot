@@ -72,8 +72,9 @@ namespace PowerShot
                 _cachedSystemInfo = string.Format("Host: {0} | User: {1} | IP: {2}", fqdn, user, ipStr);
                 return _cachedSystemInfo;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine("  [Error] システム情報の取得に失敗しました: " + ex.Message);
                 _cachedSystemInfo = "System Info Error";
                 return _cachedSystemInfo;
             }
