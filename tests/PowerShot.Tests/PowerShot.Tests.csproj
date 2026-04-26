@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -23,5 +24,6 @@
     <Compile Include="../../src/Utils/FileManager.cs" Link="FileManager.cs" />
     <Compile Include="../../src/Controllers/ViewerController.cs" Link="ViewerController.cs" />
     <Compile Include="../../src/Models/ViewerModels.cs" Link="ViewerModels.cs" />
+    <Compile Include="../../src/Utils/XamlLoader.cs" Link="XamlLoader.cs" />
   </ItemGroup>
 </Project>
