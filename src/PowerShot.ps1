@@ -1,5 +1,5 @@
 # ============================================================
-# PowerShot v3.0 - PowerShell Launcher & Session Manager
+# PowerShot v3.1 - PowerShell Launcher & Session Manager
 # ============================================================
 # WPF hybrid architecture: XAML + C# compiled in-memory via Add-Type
 # Requires STA thread (launched via PowerShot.bat with -STA flag)
