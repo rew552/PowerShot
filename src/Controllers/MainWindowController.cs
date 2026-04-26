@@ -225,7 +225,7 @@ namespace PowerShot
             var items = new List<ExplorerItem>();
             try
             {
-                foreach (var dir in new DirectoryInfo(_currentDirectory).GetDirectories().OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
+                foreach (var dir in new DirectoryInfo(_currentDirectory).EnumerateDirectories().OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
                 {
                     items.Add(new ExplorerItem
                     {
@@ -237,7 +237,7 @@ namespace PowerShot
                     });
                 }
 
-                foreach (var fi in new DirectoryInfo(_currentDirectory).GetFiles().OrderBy(f => f.Name))
+                foreach (var fi in new DirectoryInfo(_currentDirectory).EnumerateFiles().OrderBy(f => f.Name))
                 {
                     items.Add(new ExplorerItem
                     {
