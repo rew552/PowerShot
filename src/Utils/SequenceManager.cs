@@ -42,9 +42,7 @@ namespace PowerShot
                     {
                         int seq;
                         if (int.TryParse(match.Groups[1].Value, out seq))
-                        {
-                            if (seq > maxSeq) maxSeq = seq;
-                        }
+                            maxSeq = Math.Max(maxSeq, seq);
                     }
                 }
             }
