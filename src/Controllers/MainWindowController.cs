@@ -220,34 +220,32 @@ namespace PowerShot
             }
         }
 
+        private ExplorerItem CreateExplorerItem(FileSystemInfo fsi, bool isDirectory)
+        {
+            return new ExplorerItem
+            {
+                Name = fsi.Name,
+                FullPath = fsi.FullName,
+                IsDirectory = isDirectory,
+                LastModified = fsi.LastWriteTime,
+                Icon = IconHelper.GetIcon(fsi.FullName, isDirectory)
+            };
+        }
+
         private void RefreshExplorer()
         {
             var items = new List<ExplorerItem>();
             try
             {
-                foreach (var dir in new DirectoryInfo(_currentDirectory).GetDirectories().OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
-                {
-                    items.Add(new ExplorerItem
-                    {
-                        Name = dir.Name,
-                        FullPath = dir.FullName,
-                        IsDirectory = true,
-                        LastModified = dir.LastWriteTime,
-                        Icon = IconHelper.GetIcon(dir.FullName, true)
-                    });
-                }
+                var dirInfo = new DirectoryInfo(_currentDirectory);
 
-                foreach (var fi in new DirectoryInfo(_currentDirectory).GetFiles().OrderBy(f => f.Name))
-                {
-                    items.Add(new ExplorerItem
-                    {
-                        Name = fi.Name,
-                        FullPath = fi.FullName,
-                        IsDirectory = false,
-                        LastModified = fi.LastWriteTime,
-                        Icon = IconHelper.GetIcon(fi.FullName, false)
-                    });
-                }
+                items.AddRange(dirInfo.GetDirectories()
+                    .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(d => CreateExplorerItem(d, true)));
+
+                items.AddRange(dirInfo.GetFiles()
+                    .OrderBy(f => f.Name)
+                    .Select(f => CreateExplorerItem(f, false)));
 
                 _explorerListView.ItemsSource = items;
 
