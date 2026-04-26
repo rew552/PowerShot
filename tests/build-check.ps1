@@ -18,9 +18,16 @@ if (-not $csFiles) {
 Write-Host "Compiling $($csFiles.Count) C# files..." -ForegroundColor Cyan
 
 $refs = @(
-    "PresentationFramework", "PresentationCore", "WindowsBase", "System.Xaml",
-    "System.Drawing", "System.Windows.Forms", "System.Xml",
-    "System.Runtime.Serialization", "System", "System.Core"
+    "PresentationFramework, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35"
+    "PresentationCore, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35"
+    "WindowsBase, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35"
+    "System.Xaml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+    "System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"
+    "System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+    "System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+    "System.Runtime.Serialization, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+    "System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+    "System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
 )
 
 try {
