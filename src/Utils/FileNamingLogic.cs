@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace PowerShot
+namespace PowerShot.Utils
 {
     public static class FileNamingLogic
     {

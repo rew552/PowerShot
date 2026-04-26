@@ -12,4 +12,4 @@ Add-Type -Path $csFiles -ReferencedAssemblies @(
     "System.Runtime.Serialization"
 )
 
-[PowerShot.ViewerController]::Run($projectDir)
+[PowerShot.Controllers.ViewerController]::Run($projectDir)

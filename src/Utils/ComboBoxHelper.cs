@@ -1,6 +1,6 @@
 using System.Windows.Controls;
 
-namespace PowerShot
+namespace PowerShot.Utils
 {
     internal static class ComboBoxHelper
     {

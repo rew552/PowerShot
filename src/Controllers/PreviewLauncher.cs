@@ -3,8 +3,10 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
+using PowerShot.Utils;
 
-namespace PowerShot
+
+namespace PowerShot.Controllers
 {
     internal static class PreviewLauncher
     {

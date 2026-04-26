@@ -3,8 +3,10 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using PowerShot.Models;
 
-namespace PowerShot
+
+namespace PowerShot.Controllers
 {
     public class SettingsWindowController
     {

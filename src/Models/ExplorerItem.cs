@@ -1,7 +1,7 @@
-﻿﻿using System;
+﻿using System;
 using System.Windows.Media;
 
-namespace PowerShot
+namespace PowerShot.Models
 {
     public class ExplorerItem
     {

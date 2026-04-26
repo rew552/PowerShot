@@ -4,8 +4,11 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using PowerShot.Models;
+using PowerShot.Utils;
 
-namespace PowerShot
+
+namespace PowerShot.Controllers
 {
     /// <summary>
     /// Owns the file-name input fields (prefix / sequence / digits / format) and the

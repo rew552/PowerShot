@@ -58,4 +58,4 @@ else {
 }
 
 # --- Launch Application ---
-[PowerShot.Program]::Run($scriptPath)
+[PowerShot.App.Program]::Run($scriptPath)
