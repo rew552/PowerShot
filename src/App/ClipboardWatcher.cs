@@ -129,15 +129,9 @@ namespace PowerShot
 
                 // --- Excel filter: if clipboard contains Excel-specific formats, ignore entirely ---
                 var formats = dataObj.GetFormats();
-                if (formats != null)
+                if (formats != null && Array.Exists(formats, fmt => fmt.IndexOf("XML Spreadsheet", StringComparison.OrdinalIgnoreCase) >= 0))
                 {
-                    foreach (var fmt in formats)
-                    {
-                        if (fmt.IndexOf("XML Spreadsheet", StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            return; // Excel cell copy detected — ignore
-                        }
-                    }
+                    return; // Excel cell copy detected — ignore
                 }
 
                 // Check for image data
