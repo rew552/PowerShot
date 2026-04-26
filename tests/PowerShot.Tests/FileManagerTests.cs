@@ -2,7 +2,7 @@ using System;
 using System.Drawing;
 using System.IO;
 using Xunit;
-using PowerShot;
+using PowerShot.Utils;
 
 namespace PowerShot.Tests
 {

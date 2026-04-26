@@ -3,7 +3,8 @@ using System.IO;
 using System.Reflection;
 using System.Collections.Generic;
 using Xunit;
-using PowerShot;
+using PowerShot.Controllers;
+using PowerShot.Models;
 
 namespace PowerShot.Tests
 {

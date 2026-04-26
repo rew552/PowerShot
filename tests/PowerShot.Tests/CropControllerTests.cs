@@ -1,6 +1,6 @@
 using System.Drawing;
 using Xunit;
-using PowerShot;
+using PowerShot.Controllers;
 
 namespace PowerShot.Tests
 {
