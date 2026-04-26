@@ -1,60 +1,60 @@
 # ============================================================
-# PowerShot v3.1 - PowerShell Launcher & Session Manager
+# PowerShot v3.2 - PowerShell Launcher & Session Manager
 # ============================================================
-# WPF hybrid architecture: XAML + C# compiled in-memory via Add-Type
-# Requires STA thread (launched via PowerShot.bat with -STA flag)
-# ============================================================
-
-# --- Load WPF and Drawing Assemblies ---
-Add-Type -AssemblyName PresentationFramework
-Add-Type -AssemblyName PresentationCore
-Add-Type -AssemblyName WindowsBase
-Add-Type -AssemblyName System.Xaml
-Add-Type -AssemblyName System.Drawing
-Add-Type -AssemblyName System.Windows.Forms
 
 # --- Resolve Paths ---
 $scriptPath = Split-Path $MyInvocation.MyCommand.Path -Parent
+$cacheDir = Join-Path $scriptPath ".cache"
+if (-not (Test-Path $cacheDir)) { New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null }
 
-# --- Recompile Guard: only Add-Type if not already loaded ---
-if (-not ('PowerShot.Program' -as [type])) {
-    $csFiles = (Get-ChildItem -Path $scriptPath -Recurse -Filter *.cs | Where-Object { $_.FullName -notmatch "ViewerController|ViewerModels" }).FullName
+# --- Load WPF and Drawing Assemblies ---
+$assemblies = @("PresentationFramework", "PresentationCore", "WindowsBase", "System.Xaml", "System.Drawing", "System.Windows.Forms")
+foreach ($asm in $assemblies) { Add-Type -AssemblyName $asm }
 
-    if (-not $csFiles -or $csFiles.Count -eq 0) {
+# --- Recompile Guard & Caching Logic ---
+if (-not ('PowerShot.App.Program' -as [type])) {
+    # Get CS files (optimized search)
+    $csFiles = Get-ChildItem -Path $scriptPath -Recurse -Filter *.cs | Where-Object { $_.FullName -notmatch "ViewerController|ViewerModels" }
+    
+    if (-not $csFiles) {
         Write-Host "ERROR: No C# source files found in $scriptPath" -ForegroundColor Red
-        Read-Host "Press Enter to exit"
-        exit 1
+        Read-Host "Press Enter to exit"; exit 1
     }
 
-    # Referenced assemblies for WPF + Drawing + Interop
-    $refs = @(
-        "PresentationFramework, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35"
-        "PresentationCore, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35"
-        "WindowsBase, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35"
-        "System.Xaml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
-        "System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"
-        "System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
-        "System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
-        "System.Runtime.Serialization, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
-        "System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
-        "System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
-    )
+    # Generate Hash for Caching based on filenames and last modification dates
+    $hashInput = ($csFiles | ForEach-Object { $_.FullName + $_.LastWriteTime.Ticks }) -join "|"
+    $hash = [BitConverter]::ToString(([System.Security.Cryptography.SHA1]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($hashInput)))).Replace("-", "").Substring(0, 12)
+    $cacheDll = Join-Path $cacheDir "PowerShot_$hash.dll"
 
-    try {
-        Add-Type -Path $csFiles -ReferencedAssemblies $refs -ErrorAction Stop
-    }
-    catch {
-        Write-Host "ERROR: C# Compilation Failed:" -ForegroundColor Red
-        Write-Host $_.Exception.Message -ForegroundColor Red
-        if ($_.Exception.InnerException) {
-            Write-Host $_.Exception.InnerException.Message -ForegroundColor Yellow
+    if (Test-Path $cacheDll) {
+        try {
+            Add-Type -Path $cacheDll -ErrorAction Stop
+        } catch {
+            Remove-Item $cacheDll -Force
         }
-        Read-Host "Press Enter to exit"
-        exit 1
     }
-}
-else {
-    Write-Host "C# Code already compiled. Skipping." -ForegroundColor Cyan
+
+    # If types are still not loaded, compile
+    if (-not ('PowerShot.App.Program' -as [type])) {
+        Write-Host "Preparing PowerShot (First run or update)..." -ForegroundColor Cyan
+        $refs = @(
+            "PresentationFramework", "PresentationCore", "WindowsBase", "System.Xaml", 
+            "System.Drawing", "System.Windows.Forms", "System.Xml", 
+            "System.Runtime.Serialization", "System", "System.Core"
+        )
+        try {
+            # Clean up old cache files to keep it tidy
+            Get-ChildItem $cacheDir -Filter "PowerShot_*.dll" | Remove-Item -Force -ErrorAction SilentlyContinue
+            
+            Add-Type -Path $csFiles.FullName -ReferencedAssemblies $refs -OutputAssembly $cacheDll -OutputType Library -ErrorAction Stop
+            # After compilation, load the newly created DLL
+            Add-Type -Path $cacheDll
+        } catch {
+            Write-Host "ERROR: C# Compilation Failed:`n$($_.Exception.Message)" -ForegroundColor Red
+            if ($_.Exception.InnerException) { Write-Host $_.Exception.InnerException.Message -ForegroundColor Yellow }
+            Read-Host "Press Enter to exit"; exit 1
+        }
+    }
 }
 
 # --- Launch Application ---
