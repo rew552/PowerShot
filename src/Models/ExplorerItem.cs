@@ -1,11 +1,19 @@
-﻿﻿using System;
+﻿using System;
 using System.Windows.Media;
 
 namespace PowerShot
 {
     public class ExplorerItem
     {
-        public ImageSource Icon { get; set; }
+        private ImageSource _icon;
+        public ImageSource Icon
+        {
+            get
+            {
+                if (_icon == null) _icon = IconHelper.GetIcon(FullPath, IsDirectory);
+                return _icon;
+            }
+        }
         public string Name { get; set; }
         public string FullPath { get; set; }
         public bool IsDirectory { get; set; }

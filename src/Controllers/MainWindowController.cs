@@ -227,8 +227,7 @@ namespace PowerShot
                 Name = fsi.Name,
                 FullPath = fsi.FullName,
                 IsDirectory = isDirectory,
-                LastModified = fsi.LastWriteTime,
-                Icon = IconHelper.GetIcon(fsi.FullName, isDirectory)
+                LastModified = fsi.LastWriteTime
             };
         }
 

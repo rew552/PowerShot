@@ -209,13 +209,25 @@ namespace PowerShot
 
         private static string ComputeImageHash(Bitmap bitmap)
         {
-            using (var ms = new MemoryStream())
-            using (var sha256 = SHA256.Create())
+            var bmpData = bitmap.LockBits(
+                new Rectangle(0, 0, bitmap.Width, bitmap.Height),
+                ImageLockMode.ReadOnly,
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            try
             {
-                bitmap.Save(ms, ImageFormat.Bmp);
-                ms.Position = 0;
-                byte[] hashBytes = sha256.ComputeHash(ms);
-                return BitConverter.ToString(hashBytes).Replace("-", "");
+                using (var sha256 = SHA256.Create())
+                {
+                    // Hash the raw pixel data directly
+                    int size = bmpData.Stride * bmpData.Height;
+                    byte[] data = new byte[size];
+                    Marshal.Copy(bmpData.Scan0, data, 0, size);
+                    byte[] hashBytes = sha256.ComputeHash(data);
+                    return BitConverter.ToString(hashBytes).Replace("-", "");
+                }
+            }
+            finally
+            {
+                bitmap.UnlockBits(bmpData);
             }
         }
 
@@ -225,18 +237,18 @@ namespace PowerShot
             {
                 int width = source.PixelWidth;
                 int height = source.PixelHeight;
-                int stride = width * ((source.Format.BitsPerPixel + 7) / 8);
 
                 // Ensure Bgra32 format
-                FormatConvertedBitmap converted = new FormatConvertedBitmap();
-                converted.BeginInit();
-                converted.Source = source;
-                converted.DestinationFormat = System.Windows.Media.PixelFormats.Bgra32;
-                converted.EndInit();
-
-                stride = width * 4;
-                byte[] pixels = new byte[height * stride];
-                converted.CopyPixels(pixels, stride, 0);
+                BitmapSource converted = source;
+                if (source.Format != System.Windows.Media.PixelFormats.Bgra32)
+                {
+                    var converter = new FormatConvertedBitmap();
+                    converter.BeginInit();
+                    converter.Source = source;
+                    converter.DestinationFormat = System.Windows.Media.PixelFormats.Bgra32;
+                    converter.EndInit();
+                    converted = converter;
+                }
 
                 var bitmap = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
                 var bmpData = bitmap.LockBits(
@@ -244,8 +256,14 @@ namespace PowerShot
                     ImageLockMode.WriteOnly,
                     System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
-                Marshal.Copy(pixels, 0, bmpData.Scan0, pixels.Length);
-                bitmap.UnlockBits(bmpData);
+                try
+                {
+                    converted.CopyPixels(Int32Rect.Empty, bmpData.Scan0, bmpData.Height * bmpData.Stride, bmpData.Stride);
+                }
+                finally
+                {
+                    bitmap.UnlockBits(bmpData);
+                }
                 return bitmap;
             }
             catch (Exception ex)
