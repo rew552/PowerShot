@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.Serialization.Json;
 using Xunit;
-using PowerShot;
+using PowerShot.Models;
 
 namespace PowerShot.Tests
 {

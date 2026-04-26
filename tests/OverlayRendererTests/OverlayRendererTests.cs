@@ -11,7 +11,7 @@ namespace PowerShot.Tests
 
         private static PointF InvokeGetPosition(SizeF textSize, Rectangle bounds, string position)
         {
-            var type = typeof(PowerShot.OverlayRenderer);
+            var type = typeof(PowerShot.Utils.OverlayRenderer);
             var methodInfo = type.GetMethod("GetPosition", BindingFlags.Static | BindingFlags.NonPublic);
             if (methodInfo == null)
                 throw new InvalidOperationException("GetPosition method not found.");

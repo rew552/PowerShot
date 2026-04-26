@@ -16,9 +16,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../../src/FileNamingLogic.cs" Link="FileNamingLogic.cs" />
+    <Compile Include="../../src/Utils/FileNamingLogic.cs" Link="FileNamingLogic.cs" />
     <Compile Include="../../src/Utils/SequenceManager.cs" Link="SequenceManager.cs" />
     <Compile Include="../../src/Models/AppSettings.cs" Link="AppSettings.cs" />
+    <Compile Include="../../src/Models/SettingsManager.cs" Link="SettingsManager.cs" />
     <Compile Include="../../src/Controllers/CropController.cs" Link="CropController.cs" />
     <Compile Include="../../src/Utils/FileManager.cs" Link="FileManager.cs" />
     <Compile Include="../../src/Controllers/ViewerController.cs" Link="ViewerController.cs" />

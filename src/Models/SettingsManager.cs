@@ -28,7 +28,7 @@ namespace PowerShot.Models
             }
             catch (Exception ex)
             {
-                Console.WriteLine("  [Error] Failed to load settings: " + ex.Message);
+                Console.WriteLine("  [Error] 設定の読み込みに失敗しました: " + ex.Message);
                 return AppSettings.Default();
             }
         }
@@ -45,7 +45,7 @@ namespace PowerShot.Models
             }
             catch (Exception ex)
             {
-                Console.WriteLine("  [Warn] Failed to save settings: " + ex.Message);
+                Console.WriteLine("  [Warn] 設定の保存に失敗しました: " + ex.Message);
             }
         }
     }

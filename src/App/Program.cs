@@ -4,6 +4,7 @@ using System.Threading;
 using System.Windows;
 
 using PowerShot.Models;
+using PowerShot.Utils;
 
 namespace PowerShot.App
 {
@@ -51,7 +52,7 @@ namespace PowerShot.App
             if (!Directory.Exists(saveDir))
             {
                 Directory.CreateDirectory(saveDir);
-                Console.WriteLine("  Screenshots directory created.");
+                Console.WriteLine("  Screenshots フォルダを作成しました。");
             }
 
             var app = new Application();
@@ -70,21 +71,22 @@ namespace PowerShot.App
             app.Run();
 
             watcher.Dispose();
-            Console.WriteLine("\nPowerShot terminated.");
+            Console.WriteLine("\nPowerShotを終了しました。");
         }
 
         private static void ConfigureDpiAwareness()
         {
+            // Per-Monitor V2: Windows 10 1703+ で WPF がモニターごとの DPI に自動追従する。
+            // 旧 Windows では EntryPointNotFoundException が出るので System DPI Aware にフォールバック。
             try
             {
-                // Per-Monitor V2: Windows 10 1703+
-                if (!PowerShot.Utils.NativeMethods.SetProcessDpiAwarenessContext(
-                        PowerShot.Utils.NativeMethods.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
-                    PowerShot.Utils.NativeMethods.SetProcessDPIAware();
+                if (!NativeMethods.SetProcessDpiAwarenessContext(
+                        NativeMethods.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
+                    NativeMethods.SetProcessDPIAware();
             }
             catch (EntryPointNotFoundException)
             {
-                PowerShot.Utils.NativeMethods.SetProcessDPIAware();
+                NativeMethods.SetProcessDPIAware();
             }
         }
 
@@ -102,15 +104,16 @@ namespace PowerShot.App
 
             Console.WriteLine("  Version: 3.1");
             Console.WriteLine("  ---------------------------------------------------------------------");
-            Console.WriteLine("  Clipboard monitoring started.");
-            Console.WriteLine("  Capturing a screenshot will launch the UI for preview/save/edit.");
-            Console.WriteLine("  Close this window to exit.");
+            Console.WriteLine("  クリップボードの監視を開始しました。");
+            Console.WriteLine("  スクリーンショットを取得するとUIが起動し、プレビューおよび保存・編集が可能です。");
+            Console.WriteLine("  終了するにはこのウィンドウを閉じてください。");
             Console.WriteLine("");
-            Console.WriteLine("  [Tips] Shortcuts:");
-            Console.WriteLine("   - [Win] + [Shift] + [S]   : Capture region");
-            Console.WriteLine("   - [Alt] + [PrintScreen]   : Capture active window");
-            Console.WriteLine("   - [Shift] + [PrintScreen] : Capture active monitor");
-            Console.WriteLine("   - [PrintScreen]           : Capture entire screen");
+            Console.WriteLine("  [Tips] スクリーンショット:");
+            Console.WriteLine("   ・[Win] + [Shift] + [S]   : 範囲を指定してキャプチャ");
+            Console.WriteLine("   ・[Alt] + [PrintScreen]   : アクティブウィンドウをキャプチャ");
+            Console.WriteLine("   ・[Shift] + [PrintScreen] : アクティブモニターをキャプチャ（独自実装）");
+            Console.WriteLine("   ・[PrintScreen]           : 画面全体をキャプチャ");
+            Console.WriteLine("     (※PrintScreenで範囲指定になる場合がある。その場合はCtrl + PrintScreen)");
             Console.WriteLine("  ---------------------------------------------------------------------");
             Console.WriteLine();
         }

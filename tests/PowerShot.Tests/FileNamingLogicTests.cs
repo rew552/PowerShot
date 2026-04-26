@@ -1,6 +1,6 @@
 using System;
 using Xunit;
-using PowerShot;
+using PowerShot.Utils;
 
 namespace PowerShot.Tests
 {
