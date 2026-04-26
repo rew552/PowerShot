@@ -38,13 +38,9 @@ namespace PowerShot
                 {
                     string fileName = Path.GetFileName(file);
                     var match = Regex.Match(fileName, pattern, RegexOptions.IgnoreCase);
-                    if (match.Success)
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out int seq))
                     {
-                        int seq;
-                        if (int.TryParse(match.Groups[1].Value, out seq))
-                        {
-                            if (seq > maxSeq) maxSeq = seq;
-                        }
+                        maxSeq = Math.Max(maxSeq, seq);
                     }
                 }
             }
