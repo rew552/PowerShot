@@ -2,3 +2,4 @@
 .gitattributes export-ignore
 tests/ export-ignore
 docs/ export-ignore
+src/.cache/ export-ignore
