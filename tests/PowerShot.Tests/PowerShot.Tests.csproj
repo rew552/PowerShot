@@ -16,5 +16,6 @@
   <ItemGroup>
     <Compile Include="../../src/FileNamingLogic.cs" Link="FileNamingLogic.cs" />
     <Compile Include="../../src/Utils/SequenceManager.cs" Link="SequenceManager.cs" />
+    <Compile Include="../../src/Models/AppSettings.cs" Link="AppSettings.cs" />
   </ItemGroup>
 </Project>
