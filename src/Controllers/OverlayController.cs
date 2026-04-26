@@ -1,8 +1,11 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using PowerShot.Models;
+using PowerShot.Utils;
 
-namespace PowerShot
+
+namespace PowerShot.Controllers
 {
     internal class OverlayController
     {

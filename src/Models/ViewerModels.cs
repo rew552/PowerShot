@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Runtime.Serialization;
 
-namespace PowerShot
+namespace PowerShot.Models
 {
     [DataContract]
     public class FolderNode

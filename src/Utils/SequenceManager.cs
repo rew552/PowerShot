@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace PowerShot
+namespace PowerShot.Utils
 {
     internal static class SequenceManager
     {

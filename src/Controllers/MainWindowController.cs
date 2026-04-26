@@ -11,8 +11,11 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using PowerShot.Models;
+using PowerShot.Utils;
 
-namespace PowerShot
+
+namespace PowerShot.Controllers
 {
     public class MainWindowController
     {

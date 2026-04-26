@@ -7,8 +7,10 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using PowerShot.Models;
 
-namespace PowerShot
+
+namespace PowerShot.Utils
 {
     internal static class OverlayRenderer
     {
