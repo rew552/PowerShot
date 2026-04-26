@@ -2,6 +2,7 @@
 src/settings.json
 src/settings.json.tmp
 src/.powershot_viewer.html
+src/.cache/
 
 # Default Output Folder
 Screenshots/
