@@ -102,7 +102,7 @@ namespace PowerShot.App
             Console.WriteLine();
             Console.ResetColor();
 
-            Console.WriteLine("  Version: 3.1");
+            Console.WriteLine("  Version: 3.2");
             Console.WriteLine("  ---------------------------------------------------------------------");
             Console.WriteLine("  クリップボードの監視を開始しました。");
             Console.WriteLine("  スクリーンショットを取得するとUIが起動し、プレビューおよび保存・編集が可能です。");

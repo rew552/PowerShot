@@ -1,6 +1,6 @@
 # PowerShot 技術仕様書 (ARCHITECTURE)
 
-PowerShot v3.0 の内部設計、動作原理、および技術的な特徴について解説します。
+PowerShot v3.2 の内部設計、動作原理、および技術的な特徴について解説します。
 
 ---
 

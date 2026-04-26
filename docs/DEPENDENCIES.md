@@ -1,6 +1,6 @@
 # Project Dependencies & Architecture
 
-PowerShot v3.0 は、PowerShell をランチャーとし、C# (WPF) をインメモリでコンパイル・実行するハイブリッド・アーキテクチャを採用しています。
+PowerShot v3.2 は、PowerShell をランチャーとし、C# (WPF) をインメモリでコンパイル・実行するハイブリッド・アーキテクチャを採用しています。
 
 ## 1. 全体構成図
 
@@ -11,6 +11,8 @@ graph TD
     Compile --> Program[Program.cs]
 
     subgraph Core
+        Program --> SettingsMgr[SettingsManager.cs]
+        SettingsMgr --> Settings[AppSettings.cs]
         Program --> Watcher[ClipboardWatcher.cs]
         Watcher --> MainCtrl[MainWindowController.cs]
     end
@@ -27,6 +29,7 @@ graph TD
         Program --> Native[NativeMethods.cs]
         Watcher --> Native
         MainCtrl --> FM[FileManager.cs]
+        FM --> FNL[FileNamingLogic.cs]
         MainCtrl --> Icon[IconHelper.cs]
         MainCtrl --> Xaml[XamlLoader.cs]
         NameCtrl --> FM
@@ -36,9 +39,7 @@ graph TD
     end
 
     subgraph Models
-        Program --> Settings[AppSettings.cs]
         Program --> Session[SessionState.cs]
-        Watcher --> Settings
         Watcher --> Session
         MainCtrl --> ExplItem[ExplorerItem.cs]
     end
@@ -61,7 +62,7 @@ graph TD
 ### 2.2 コア・ロジック
 | ファイル | 役割 | 依存先 |
 | :--- | :--- | :--- |
-| `Program.cs` | アプリケーションの初期化、ライフサイクル管理 | `ClipboardWatcher`, `AppSettings` (SettingsManager経由), `SessionState`, `NativeMethods` |
+| `Program.cs` | アプリケーションの初期化、ライフサイクル管理 | `ClipboardWatcher`, `SettingsManager`, `SessionState`, `NativeMethods` |
 | `ClipboardWatcher.cs` | クリップボード更新およびホットキーの監視 | `MainWindowController`, `NativeMethods`, `XamlLoader`, `AppSettings`, `SessionState` |
 
 ### 2.3 UI コントローラー
@@ -78,11 +79,13 @@ graph TD
 | ファイル | 役割 | 依存先 |
 | :--- | :--- | :--- |
 | `NativeMethods.cs` | Windows API (P/Invoke) の定義 | Win32 API |
-| `FileManager.cs` | 画像の保存 (JPEG/PNG)、フォルダ・ファイル名のバリデーション | `System.Drawing` |
+| `FileManager.cs` | 画像の保存 (JPEG/PNG)、フォルダバリデーション | `FileNamingLogic`, `System.Drawing` |
+| `FileNamingLogic.cs` | ファイル名の生成規則、禁則文字チェック | - |
 | `OverlayRenderer.cs` | GDI+ を使用した画像へのテキスト描画 | `System.Drawing` |
 | `XamlLoader.cs` | ランタイムでの XAML ファイル読み込み | `PresentationFramework` |
 | `ComboBoxHelper.cs` | ComboBox の Tag ベース選択ヘルパー | - |
-| `AppSettings.cs` | `settings.json` の構造定義とシリアライズ (SettingsManager) | `System.Runtime.Serialization` |
+| `SettingsManager.cs` | `settings.json` のロード/保存ロジック | `AppSettings`, `DataContractJsonSerializer` |
+| `AppSettings.cs` | `settings.json` のデータ構造定義 | `System.Runtime.Serialization` |
 | `SessionState.cs` | 前回のディレクトリ、現在の連番など実行時状態の保持 | - |
 | `ExplorerItem.cs` | エクスプローラーリストのアイテムモデル | - |
 

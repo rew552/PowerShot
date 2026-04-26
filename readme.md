@@ -1,4 +1,4 @@
-# >\_ PowerShot v3.0
+# >\_ PowerShot v3.2
 
 クリップボードの画像を検知し、即座に編集・管理・保存ができる生産性向上ツールです。<br>
 インストール不要で、batファイルをダブルクリックするだけで起動します。<br>
@@ -94,7 +94,7 @@ PowerShot/
 
 ## 📝 ドキュメント
 
-- [リリースノート (v3.0)](./docs/RELEASE_NOTES_v3.md)
+- [リリースノート (v3.2)](./docs/CHANGELOG.md)
 - [プロジェクト構成と依存関係](./docs/DEPENDENCIES.md)
 - [技術仕様書 (内部アーキテクチャ)](./docs/ARCHITECTURE.md)
 - [今後のロードマップ](./docs/ROADMAP.md)
