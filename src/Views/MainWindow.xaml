@@ -1,9 +1,9 @@
 <Window
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
     Title=">_ PowerShot 3.2"
-    MinWidth="800" MinHeight="600"
-    Width="1100" Height="650"
+    MinWidth="720" MinHeight="480"
     WindowStartupLocation="CenterScreen"
     Background="Transparent"
     AllowsTransparency="True"
@@ -11,6 +11,10 @@
     Topmost="True">
 
     <Window.Resources>
+        <sys:Double x:Key="FontSizeSmall">12</sys:Double>
+        <sys:Double x:Key="FontSizeBase">13</sys:Double>
+        <sys:Double x:Key="FontSizeLarge">14</sys:Double>
+
         <!-- Shared dark theme styles -->
         <SolidColorBrush x:Key="BgPrimary" Color="#252526"/>
         <SolidColorBrush x:Key="BgSecondary" Color="#1E1E1E"/>
@@ -384,13 +388,13 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Orientation="Horizontal" Margin="12,0" VerticalAlignment="Center">
-                    <TextBlock Text=">_ " Foreground="{StaticResource AccentBrush}" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                    <TextBlock Text=">_ " Foreground="{StaticResource AccentBrush}" FontWeight="Bold" FontSize="{StaticResource FontSizeLarge}" VerticalAlignment="Center"/>
                     <TextBlock Text="PowerShot 3.2" Foreground="#AAAAAA" FontSize="11" Margin="4,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button x:Name="SettingsToolButton" 
-                            Width="45" Content="⚙" FontSize="14" 
+                            Width="45" Content="⚙" FontSize="{StaticResource FontSizeLarge}" 
                             Style="{StaticResource SettingsToolButtonStyle}" VerticalAlignment="Stretch"/>
                     <Button x:Name="CloseToolButton" 
                             Width="45" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" 
@@ -406,11 +410,13 @@
                 </Grid.Resources>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="65*"/>
-                    <ColumnDefinition Width="35*"/>
+                    <ColumnDefinition Width="35*" MinWidth="260"/>
                 </Grid.ColumnDefinitions>
         
                 <!-- ===== LEFT COLUMN: Image Preview ===== -->
                 <Border Grid.Column="0"
+                        MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Grid}}"
+                        MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Grid}}"
                         Background="#1E1E1E"
                         BorderBrush="#3F3F46"
                         BorderThickness="1"
@@ -432,7 +438,7 @@
                 <!-- ===== RIGHT COLUMN: Explorer + Form ===== -->
                 <TabControl Grid.Column="1" Style="{StaticResource DarkTabControl}" Margin="8,4,0,0">
                     <TabItem Header="💾 保存" Style="{StaticResource DarkTabItem}">
-                        <Grid Margin="0,8,0,0">
+                        <Grid Margin="0,8,0,0" Grid.IsSharedSizeScope="True">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>   <!-- Row 1: File Explorer + Buttons -->
                         <RowDefinition Height="Auto"/>   <!-- Row 2: Back + Address bar -->
@@ -446,7 +452,7 @@
                         <TextBlock Text="File Explorer" 
                                    Foreground="#888888" 
                                    FontFamily="Yu Gothic UI, Segoe UI"
-                                   FontSize="13" 
+                                   FontSize="{StaticResource FontSizeBase}" 
                                    FontWeight="SemiBold"
                                    HorizontalAlignment="Left"
                                    VerticalAlignment="Center"/>
@@ -474,7 +480,7 @@
                             <TextBlock x:Name="PathDisplay"
                                        Foreground="#AAAAAA"
                                        FontFamily="Yu Gothic UI, Segoe UI"
-                                       FontSize="12"
+                                       FontSize="{StaticResource FontSizeSmall}"
                                        VerticalAlignment="Center"
                                        Text=".\"/>
                         </Border>
@@ -498,7 +504,7 @@
                               BorderThickness="1"
                               Foreground="#F1F1F1"
                               FontFamily="Yu Gothic UI, Segoe UI"
-                              FontSize="13"
+                              FontSize="{StaticResource FontSizeBase}"
                               Margin="0,0,0,6"
                               ScrollViewer.HorizontalScrollBarVisibility="Auto"
                               VirtualizingPanel.IsVirtualizing="False"
@@ -530,7 +536,7 @@
                         </ListView.ItemContainerStyle>
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn Header="名前" Width="350">
+                                <GridViewColumn Header="名前" Width="Auto">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" Margin="6,4">
@@ -540,7 +546,7 @@
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
-                                <GridViewColumn Header="更新日時" Width="110">
+                                <GridViewColumn Header="更新日時" Width="Auto">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding LastModified, StringFormat='yyyy/MM/dd HH:mm'}" Foreground="#AAAAAA" FontSize="11" Margin="4,2" VerticalAlignment="Center"/>
@@ -562,7 +568,7 @@
                             <!-- Prefix -->
                             <Grid Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="FormLabels"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="接頭辞:" Style="{StaticResource FormLabel}"/>
@@ -572,12 +578,12 @@
                             <!-- Sequence + Format -->
                             <Grid Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="FormLabels"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="FormLabels"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="連番:" Style="{StaticResource FormLabel}"/>
                                 <TextBox x:Name="SequenceTextBox" Grid.Column="1" Style="{StaticResource DarkTextBox}"/>
@@ -606,7 +612,7 @@
                                 <TextBlock x:Name="FileNamePreview"
                                            Foreground="#569CD6"
                                            FontFamily="Consolas, Yu Gothic UI"
-                                           FontSize="12"
+                                           FontSize="{StaticResource FontSizeSmall}"
                                            TextTrimming="CharacterEllipsis"
                                            Text="ファイル名プレビュー"/>
                             </Border>
@@ -618,7 +624,7 @@
                                     IsDefault="True"
                                     Margin="0,0,0,10"
                                     Padding="0,10"
-                                    FontSize="14"
+                                    FontSize="{StaticResource FontSizeLarge}"
                                     FontWeight="Bold"
                                     HorizontalAlignment="Stretch"/>
                         </StackPanel>
@@ -639,11 +645,11 @@
                                     <!-- System Info Section -->
                                     <Border Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="15" Margin="0,0,0,10">
                                         <StackPanel>
-                                            <TextBlock Text="システム情報" Foreground="#AAAAAA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                            <TextBlock Text="システム情報" Foreground="#AAAAAA" FontSize="{StaticResource FontSizeSmall}" FontWeight="SemiBold" Margin="0,0,0,8"/>
                                             <CheckBox x:Name="EmbedSysInfoCheckBox" Content="画像にシステム情報を埋め込む" Style="{StaticResource DarkCheckBox}" Margin="0,0,0,12"/>
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="70"/>
+                                                    <ColumnDefinition Width="Auto" SharedSizeGroup="FormLabels"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="0" Text="表示位置:" Style="{StaticResource FormLabel}"/>
@@ -660,10 +666,10 @@
                                     <!-- Custom Text Section -->
                                     <Border Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="15" Margin="0,0,0,10">
                                         <StackPanel>
-                                            <TextBlock Text="カスタムテキスト" Foreground="#AAAAAA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                            <TextBlock Text="カスタムテキスト" Foreground="#AAAAAA" FontSize="{StaticResource FontSizeSmall}" FontWeight="SemiBold" Margin="0,0,0,8"/>
                                             <Grid Margin="0,0,0,12">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="70"/>
+                                                    <ColumnDefinition Width="Auto" SharedSizeGroup="FormLabels"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="0" Text="テキスト:" Style="{StaticResource FormLabel}"/>
@@ -671,7 +677,7 @@
                                             </Grid>
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="70"/>
+                                                    <ColumnDefinition Width="Auto" SharedSizeGroup="FormLabels"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="0" Text="表示位置:" Style="{StaticResource FormLabel}"/>
@@ -692,7 +698,7 @@
                                         Content="🔄 プレビューを更新" 
                                         Margin="0,0,0,10"
                                         Padding="0,10"
-                                        FontSize="13"
+                                        FontSize="{StaticResource FontSizeBase}"
                                         FontWeight="SemiBold"
                                         HorizontalAlignment="Stretch"/>
                             </StackPanel>
@@ -711,7 +717,7 @@
                                 <StackPanel x:Name="CropSettingsPanel" IsEnabled="{Binding ElementName=CropEnableCheckBox, Path=IsChecked}">
                                     <Border Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="15" Margin="0,0,0,10">
                                         <StackPanel>
-                                            <TextBlock Text="切り抜き範囲 (プレビュー上でドラッグして指定可能)" Foreground="#AAAAAA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,12" TextWrapping="Wrap"/>
+                                            <TextBlock Text="切り抜き範囲 (プレビュー上でドラッグして指定可能)" Foreground="#AAAAAA" FontSize="{StaticResource FontSizeSmall}" FontWeight="SemiBold" Margin="0,0,0,12" TextWrapping="Wrap"/>
                                             
                                             <Grid Margin="0,0,0,8">
                                                 <Grid.ColumnDefinitions>

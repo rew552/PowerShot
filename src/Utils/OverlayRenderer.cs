@@ -14,8 +14,13 @@ namespace PowerShot.Utils
 {
     internal static class OverlayRenderer
     {
-        private const float Padding = 12f;
-        private const float FontSize = 16f;
+        private const float FontSizeRatio = 0.022f;
+        private const float PaddingRatio = 0.015f;
+        private const float MinFontSize = 10f;
+        private const float MaxFontSize = 56f;
+        private const float MinPadding = 6f;
+        private const float MaxPadding = 32f;
+
         private const string FontFamily = "Segoe UI";
         private const string DefaultPosition = "TopLeft";
 
@@ -39,8 +44,17 @@ namespace PowerShot.Utils
 
             if (overlays.Count == 0) return;
 
+            float shortEdge = Math.Min(bounds.Width, bounds.Height);
+            float fontSize = shortEdge * FontSizeRatio;
+            if (fontSize < MinFontSize) fontSize = MinFontSize;
+            if (fontSize > MaxFontSize) fontSize = MaxFontSize;
+
+            float padding = shortEdge * PaddingRatio;
+            if (padding < MinPadding) padding = MinPadding;
+            if (padding > MaxPadding) padding = MaxPadding;
+
             using (Graphics g = Graphics.FromImage(bmp))
-            using (Font font = new Font(FontFamily, FontSize, FontStyle.Bold))
+            using (Font font = new Font(FontFamily, fontSize, FontStyle.Bold))
             using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(160, 0, 0, 0)))
             using (SolidBrush textBrush = new SolidBrush(Color.White))
             {
@@ -50,7 +64,7 @@ namespace PowerShot.Utils
                 foreach (var kvp in overlays)
                 {
                     string text = string.Join("\n", kvp.Value);
-                    DrawBlock(g, font, bgBrush, textBrush, bounds, kvp.Key, text);
+                    DrawBlock(g, font, bgBrush, textBrush, bounds, kvp.Key, text, padding);
                 }
             }
         }
@@ -95,34 +109,34 @@ namespace PowerShot.Utils
         }
 
         private static void DrawBlock(Graphics g, Font font, SolidBrush bgBrush, SolidBrush textBrush,
-            Rectangle bounds, string position, string text)
+            Rectangle bounds, string position, string text, float padding)
         {
             SizeF textSize = g.MeasureString(text, font);
-            PointF pt = GetPosition(textSize, bounds, position);
+            PointF pt = GetPosition(textSize, bounds, position, padding);
 
-            g.FillRectangle(bgBrush, pt.X, pt.Y, textSize.Width + Padding * 2, textSize.Height + Padding * 2);
-            g.DrawString(text, font, textBrush, pt.X + Padding, pt.Y + Padding);
+            g.FillRectangle(bgBrush, pt.X, pt.Y, textSize.Width + padding * 2, textSize.Height + padding * 2);
+            g.DrawString(text, font, textBrush, pt.X + padding, pt.Y + padding);
         }
 
-        private static PointF GetPosition(SizeF textSize, Rectangle bounds, string position)
+        private static PointF GetPosition(SizeF textSize, Rectangle bounds, string position, float padding)
         {
-            float rectW = textSize.Width + Padding * 2;
-            float rectH = textSize.Height + Padding * 2;
-            float x = bounds.X + Padding;
-            float y = bounds.Y + Padding;
+            float rectW = textSize.Width + padding * 2;
+            float rectH = textSize.Height + padding * 2;
+            float x = bounds.X + padding;
+            float y = bounds.Y + padding;
 
             if (position == "TopRight")
             {
-                x = bounds.Right - rectW - Padding;
+                x = bounds.Right - rectW - padding;
             }
             else if (position == "BottomLeft")
             {
-                y = bounds.Bottom - rectH - Padding;
+                y = bounds.Bottom - rectH - padding;
             }
             else if (position == "BottomRight")
             {
-                x = bounds.Right - rectW - Padding;
-                y = bounds.Bottom - rectH - Padding;
+                x = bounds.Right - rectW - padding;
+                y = bounds.Bottom - rectH - padding;
             }
 
             if (x < bounds.X) x = bounds.X;

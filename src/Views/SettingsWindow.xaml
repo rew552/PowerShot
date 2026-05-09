@@ -2,7 +2,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Settings - PowerShot"
-    Width="500" Height="360"
+    MinWidth="360" MinHeight="280"
     WindowStartupLocation="CenterOwner"
     Background="Transparent"
     AllowsTransparency="True"
@@ -180,9 +180,9 @@
 
             <!-- Content Area -->
             <ScrollViewer Grid.Row="1" Margin="16" VerticalScrollBarVisibility="Auto">
-                <Grid>
+                <Grid Grid.IsSharedSizeScope="True">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="120"/>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="SettingsLabels"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
@@ -218,8 +218,8 @@
             <!-- Footer Buttons -->
             <Border Grid.Row="2" Background="#1E1E1E" BorderBrush="#3F3F46" BorderThickness="0,1,0,0" Padding="16">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="OkButton" Content="OK" Style="{StaticResource PrimaryButton}" Width="80" Margin="0,0,8,0" IsDefault="True"/>
-                    <Button x:Name="CancelButton" Content="キャンセル" Style="{StaticResource SecondaryButton}" Width="80" IsCancel="True"/>
+                    <Button x:Name="OkButton" Content="OK" Style="{StaticResource PrimaryButton}" MinWidth="72" Margin="0,0,8,0" IsDefault="True"/>
+                    <Button x:Name="CancelButton" Content="キャンセル" Style="{StaticResource SecondaryButton}" MinWidth="72" IsCancel="True"/>
                 </StackPanel>
             </Border>
         </Grid>
