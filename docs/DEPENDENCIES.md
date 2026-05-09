@@ -1,6 +1,6 @@
 # Project Dependencies & Architecture
 
-PowerShot v3.2 は、PowerShell をランチャーとし、C# (WPF) をインメモリでコンパイル・実行するハイブリッド・アーキテクチャを採用しています。
+PowerShot v3.3 は、PowerShell をランチャーとし、C# (WPF) をインメモリでコンパイル・実行するハイブリッド・アーキテクチャを採用しています。
 
 ## 1. 全体構成図
 

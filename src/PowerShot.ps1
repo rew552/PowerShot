@@ -1,5 +1,5 @@
 # ============================================================
-# PowerShot v3.2 - PowerShell Launcher & Session Manager
+# PowerShot v3.3 - PowerShell Launcher & Session Manager
 # ============================================================
 
 # --- Resolve Paths ---
