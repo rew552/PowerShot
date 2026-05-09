@@ -138,6 +138,24 @@ namespace PowerShot.Controllers
 
         private void Initialize()
         {
+            double maxWidth = SystemParameters.WorkArea.Width * 0.9;
+            double maxHeight = SystemParameters.WorkArea.Height * 0.9;
+            _window.Width = Math.Min(1100.0, maxWidth);
+            _window.Height = Math.Min(650.0, maxHeight);
+
+            _window.SizeChanged += (s, e) =>
+            {
+                GridView gv = _explorerListView.View as GridView;
+                if (gv != null && gv.Columns.Count > 0)
+                {
+                    double available = _explorerListView.ActualWidth - gv.Columns[1].ActualWidth - 30; // 30 for scrollbar and margins
+                    if (available > 0 && gv.Columns[0].ActualWidth > available)
+                    {
+                        gv.Columns[0].Width = available;
+                    }
+                }
+            };
+
             _cropController = new CropController(
                 (Canvas)_window.FindName("CropCanvas"),
                 (System.Windows.Shapes.Rectangle)_window.FindName("CropSelectionRect"),
@@ -257,6 +275,16 @@ namespace PowerShot.Controllers
                 {
                     gv.Columns[0].Width = 0;
                     gv.Columns[0].Width = double.NaN;
+                    
+                    // We dispatch the width check so it happens after layout has updated the ActualWidth
+                    _explorerListView.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        double available = _explorerListView.ActualWidth - gv.Columns[1].ActualWidth - 30;
+                        if (available > 0 && gv.Columns[0].ActualWidth > available)
+                        {
+                            gv.Columns[0].Width = available;
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
                 }
             }
             catch (Exception ex)

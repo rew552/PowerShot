@@ -2,8 +2,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="PowerShot - Preview"
-    Width="800" Height="600"
-    MinWidth="400" MinHeight="300"
+    MinWidth="320" MinHeight="240"
     WindowStartupLocation="CenterScreen"
     Background="#1E1E1E"
     Foreground="#F1F1F1"
@@ -21,11 +20,13 @@
                    Margin="12,8"
                    Panel.ZIndex="1"/>
 
-        <!-- Image with aspect-ratio preserved scaling -->
-        <Viewbox Stretch="Uniform" Margin="4">
-            <Image x:Name="PreviewImage"
-                   RenderOptions.BitmapScalingMode="HighQuality"
-                   Stretch="Uniform"/>
-        </Viewbox>
+        <!-- Image with aspect-ratio preserved scaling, scollable if exceeds window -->
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Margin="4">
+            <Viewbox Stretch="Uniform">
+                <Image x:Name="PreviewImage"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       Stretch="Uniform"/>
+            </Viewbox>
+        </ScrollViewer>
     </Grid>
 </Window>

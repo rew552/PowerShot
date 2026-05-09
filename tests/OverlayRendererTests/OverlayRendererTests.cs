@@ -9,13 +9,13 @@ namespace PowerShot.Tests
     {
         private const float Padding = 12f;
 
-        private static PointF InvokeGetPosition(SizeF textSize, Rectangle bounds, string position)
+        private static PointF InvokeGetPosition(SizeF textSize, Rectangle bounds, string position, float padding)
         {
             var type = typeof(PowerShot.Utils.OverlayRenderer);
             var methodInfo = type.GetMethod("GetPosition", BindingFlags.Static | BindingFlags.NonPublic);
             if (methodInfo == null)
                 throw new InvalidOperationException("GetPosition method not found.");
-            return (PointF)methodInfo.Invoke(null, new object[] { textSize, bounds, position });
+            return (PointF)methodInfo.Invoke(null, new object[] { textSize, bounds, position, padding });
         }
 
         [Fact]
@@ -24,7 +24,7 @@ namespace PowerShot.Tests
             var textSize = new SizeF(100, 50);
             var bounds = new Rectangle(10, 20, 500, 300);
 
-            var result = InvokeGetPosition(textSize, bounds, "TopLeft");
+            var result = InvokeGetPosition(textSize, bounds, "TopLeft", Padding);
 
             Assert.Equal(bounds.X + Padding, result.X);
             Assert.Equal(bounds.Y + Padding, result.Y);
@@ -36,7 +36,7 @@ namespace PowerShot.Tests
             var textSize = new SizeF(100, 50);
             var bounds = new Rectangle(10, 20, 500, 300);
 
-            var result = InvokeGetPosition(textSize, bounds, "TopRight");
+            var result = InvokeGetPosition(textSize, bounds, "TopRight", Padding);
 
             float rectW = textSize.Width + Padding * 2;
             Assert.Equal(bounds.Right - rectW - Padding, result.X);
@@ -49,7 +49,7 @@ namespace PowerShot.Tests
             var textSize = new SizeF(100, 50);
             var bounds = new Rectangle(10, 20, 500, 300);
 
-            var result = InvokeGetPosition(textSize, bounds, "BottomLeft");
+            var result = InvokeGetPosition(textSize, bounds, "BottomLeft", Padding);
 
             float rectH = textSize.Height + Padding * 2;
             Assert.Equal(bounds.X + Padding, result.X);
@@ -62,7 +62,7 @@ namespace PowerShot.Tests
             var textSize = new SizeF(100, 50);
             var bounds = new Rectangle(10, 20, 500, 300);
 
-            var result = InvokeGetPosition(textSize, bounds, "BottomRight");
+            var result = InvokeGetPosition(textSize, bounds, "BottomRight", Padding);
 
             float rectW = textSize.Width + Padding * 2;
             float rectH = textSize.Height + Padding * 2;
@@ -76,7 +76,7 @@ namespace PowerShot.Tests
             var textSize = new SizeF(100, 50);
             var bounds = new Rectangle(10, 20, 500, 300);
 
-            var result = InvokeGetPosition(textSize, bounds, "Center");
+            var result = InvokeGetPosition(textSize, bounds, "Center", Padding);
 
             Assert.Equal(bounds.X + Padding, result.X);
             Assert.Equal(bounds.Y + Padding, result.Y);
@@ -88,10 +88,23 @@ namespace PowerShot.Tests
             var textSize = new SizeF(100, 50);
             var bounds = new Rectangle(10, 20, 50, 50);
 
-            var result = InvokeGetPosition(textSize, bounds, "BottomRight");
+            var result = InvokeGetPosition(textSize, bounds, "BottomRight", Padding);
 
             Assert.Equal(bounds.X, result.X);
             Assert.Equal(bounds.Y, result.Y);
+        }
+
+        [Fact]
+        public void GetPosition_WithScaledPadding_UsesPaddingCorrectly()
+        {
+            float scaledPadding = 32f;
+            var textSize = new SizeF(100, 50);
+            var bounds = new Rectangle(0, 0, 4000, 3000);
+
+            var result = InvokeGetPosition(textSize, bounds, "TopLeft", scaledPadding);
+
+            Assert.Equal(scaledPadding, result.X);
+            Assert.Equal(scaledPadding, result.Y);
         }
     }
 }

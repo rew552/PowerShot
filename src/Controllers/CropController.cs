@@ -13,7 +13,6 @@ namespace PowerShot.Controllers
 {
     internal class CropController
     {
-        private const double EdgeMargin = 8.0;
         private const double MinSize = 10.0;
 
         private enum DragMode
@@ -150,10 +149,15 @@ namespace PowerShot.Controllers
             double w = _selectionRect.Width;
             double h = _selectionRect.Height;
 
-            bool left = Math.Abs(p.X - x) <= EdgeMargin;
-            bool right = Math.Abs(p.X - (x + w)) <= EdgeMargin;
-            bool top = Math.Abs(p.Y - y) <= EdgeMargin;
-            bool bottom = Math.Abs(p.Y - (y + h)) <= EdgeMargin;
+            double scale = _canvas.ActualWidth > 0 && _canvas.Width > 0 
+                           ? _canvas.ActualWidth / _canvas.Width 
+                           : 1.0;
+            double effectiveMargin = 12.0 / scale;
+
+            bool left = Math.Abs(p.X - x) <= effectiveMargin;
+            bool right = Math.Abs(p.X - (x + w)) <= effectiveMargin;
+            bool top = Math.Abs(p.Y - y) <= effectiveMargin;
+            bool bottom = Math.Abs(p.Y - (y + h)) <= effectiveMargin;
 
             bool insideX = p.X >= x && p.X <= x + w;
             bool insideY = p.Y >= y && p.Y <= y + h;

@@ -24,20 +24,19 @@
             color: var(--fg-primary);
             font-family: 'Segoe UI', 'Yu Gothic UI', Meiryo, sans-serif;
             font-size: 13px;
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(200px, 18vw) 1fr;
             height: 100vh;
             overflow: hidden;
         }
 
         /* Sidebar */
         #sidebar {
-            width: 250px;
-            max-width: 35vw;
             background-color: var(--bg-secondary);
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            flex-shrink: 0;
+            overflow: hidden;
         }
         
         .sidebar-header {
@@ -110,13 +109,12 @@
         }
 
         #gallery {
-            flex: 1;
             padding: 16px;
             overflow-y: auto;
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 16px;
-            align-content: flex-start;
+            align-content: start;
         }
 
         .thumb-card {
@@ -126,7 +124,7 @@
             overflow: hidden;
             cursor: pointer;
             transition: transform 0.1s, border-color 0.1s;
-            width: 240px;
+            width: 100%;
             display: flex;
             flex-direction: column;
         }
@@ -137,7 +135,8 @@
 
         .thumb-img {
             width: 100%;
-            height: 135px; /* 240x135 is exactly 16:9 */
+            height: auto;
+            aspect-ratio: 16/9;
             object-fit: contain;
             display: block;
             border-bottom: 1px solid var(--border);
@@ -216,6 +215,24 @@
             background: rgba(0,0,0,0.5);
             padding: 4px 12px;
             border-radius: 4px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                grid-template-columns: 1fr;
+            }
+            #sidebar {
+                display: none;
+            }
+        }
+
+        @media (min-width: 1920px) {
+            html {
+                font-size: 16px;
+            }
+            body {
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
