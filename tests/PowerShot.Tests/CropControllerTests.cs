@@ -69,7 +69,7 @@ namespace PowerShot.Tests
             {
                 var canvas = new Canvas { Width = 1920, Height = 1080 };
                 // Simulate rendering scale:
-                canvas.Measure(new Size(480, 270));
+                canvas.Measure(new System.Windows.Size(480, 270));
                 canvas.Arrange(new Rect(0, 0, 480, 270));
                 
                 var rect = new System.Windows.Shapes.Rectangle { Width = 500, Height = 500 };

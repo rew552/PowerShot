@@ -7,8 +7,8 @@
 $assemblies = @("PresentationFramework", "PresentationCore", "WindowsBase", "System.Xaml", "System.Drawing", "System.Windows.Forms")
 foreach ($asm in $assemblies) { Add-Type -AssemblyName $asm }
 
-$srcPath = Join-Path $PSScriptRoot ".." "src"
-$csFiles = Get-ChildItem -Path $srcPath -Recurse -Filter *.cs | Where-Object { $_.FullName -notmatch "ViewerController|ViewerModels" }
+$srcPath = Join-Path (Join-Path $PSScriptRoot "..") "src"
+$csFiles = Get-ChildItem -Path $srcPath -Recurse -Filter *.cs | Where-Object { $_.FullName -notmatch "ViewerController|ViewerModels|\\obj\\|\\bin\\" }
 
 if (-not $csFiles) {
     Write-Host "ERROR: No C# source files found in $srcPath" -ForegroundColor Red

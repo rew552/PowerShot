@@ -145,10 +145,14 @@ namespace PowerShot.Controllers
 
             _window.SizeChanged += (s, e) =>
             {
-                if (_explorerListView.View is GridView gv && gv.Columns.Count > 0)
+                GridView gv = _explorerListView.View as GridView;
+                if (gv != null && gv.Columns.Count > 0)
                 {
                     double available = _explorerListView.ActualWidth - gv.Columns[1].ActualWidth - 30; // 30 for scrollbar and margins
-                    if (available > 0) gv.Columns[0].MaxWidth = available;
+                    if (available > 0 && gv.Columns[0].ActualWidth > available)
+                    {
+                        gv.Columns[0].Width = available;
+                    }
                 }
             };
 
@@ -271,8 +275,16 @@ namespace PowerShot.Controllers
                 {
                     gv.Columns[0].Width = 0;
                     gv.Columns[0].Width = double.NaN;
-                    double available = _explorerListView.ActualWidth - gv.Columns[1].ActualWidth - 30;
-                    if (available > 0) gv.Columns[0].MaxWidth = available;
+                    
+                    // We dispatch the width check so it happens after layout has updated the ActualWidth
+                    _explorerListView.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        double available = _explorerListView.ActualWidth - gv.Columns[1].ActualWidth - 30;
+                        if (available > 0 && gv.Columns[0].ActualWidth > available)
+                        {
+                            gv.Columns[0].Width = available;
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
                 }
             }
             catch (Exception ex)
