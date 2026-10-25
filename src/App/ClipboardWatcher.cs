@@ -6,9 +6,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Interop;
-using System.Windows.Markup;
 using System.Windows.Media.Imaging;
-using PowerShot.Models;
 using PowerShot.Utils;
 using PowerShot.Controllers;
 
