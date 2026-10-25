@@ -6,7 +6,6 @@ using System.Windows.Input;
 using WpfShapeRect = System.Windows.Shapes.Rectangle;
 using WpfPoint = System.Windows.Point;
 using WpfSize = System.Windows.Size;
-using PowerShot.Models;
 
 
 namespace PowerShot.Controllers
