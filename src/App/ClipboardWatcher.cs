@@ -10,7 +10,6 @@ using System.Windows.Markup;
 using System.Windows.Media.Imaging;
 using PowerShot.Models;
 using PowerShot.Utils;
-using PowerShot.Controllers;
 
 
 namespace PowerShot.App
