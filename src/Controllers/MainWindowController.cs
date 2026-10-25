@@ -569,7 +569,7 @@ namespace PowerShot.Controllers
                 ? CropController.ClampRect(_settings.CropX, _settings.CropY, _settings.CropWidth, _settings.CropHeight, bmp.Width, bmp.Height)
                 : new Rectangle(0, 0, bmp.Width, bmp.Height);
 
-            OverlayRenderer.Apply(bmp, _settings, bounds);
+            OverlayRenderer.Apply(bmp, _settings.OverlayEnabled, _settings.EmbedSysInfo, _settings.SysInfoPosition, _settings.OverlayText, _settings.OverlayTextPosition, bounds);
         }
 
         // --- Window-level events ---
