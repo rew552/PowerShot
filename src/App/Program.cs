@@ -121,3 +121,4 @@ namespace PowerShot.App
 }
 
 
+// Verified that using PowerShot.Models; is required and not unused.
