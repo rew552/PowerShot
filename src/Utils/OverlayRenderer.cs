@@ -7,7 +7,6 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using PowerShot.Models;
 
 
 namespace PowerShot.Utils
@@ -27,19 +26,19 @@ namespace PowerShot.Utils
         // Cached: hostname/IP rarely change within a session; DNS calls are slow.
         private static string _cachedSystemInfo;
 
-        public static void Apply(Bitmap bmp, AppSettings settings, Rectangle bounds)
+        public static void Apply(Bitmap bmp, bool overlayEnabled, bool embedSysInfo, string sysInfoPosition, string overlayText, string overlayTextPosition, Rectangle bounds)
         {
-            if (settings == null || !settings.OverlayEnabled) return;
+            if (!overlayEnabled) return;
 
             var overlays = new Dictionary<string, List<string>>();
 
-            if (settings.EmbedSysInfo)
+            if (embedSysInfo)
             {
-                AddOverlay(overlays, settings.SysInfoPosition, GetSystemInfoString());
+                AddOverlay(overlays, sysInfoPosition, GetSystemInfoString());
             }
-            if (!string.IsNullOrWhiteSpace(settings.OverlayText))
+            if (!string.IsNullOrWhiteSpace(overlayText))
             {
-                AddOverlay(overlays, settings.OverlayTextPosition, settings.OverlayText);
+                AddOverlay(overlays, overlayTextPosition, overlayText);
             }
 
             if (overlays.Count == 0) return;
